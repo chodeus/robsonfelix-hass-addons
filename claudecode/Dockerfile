@@ -132,10 +132,18 @@ update_mcp_token() {
   fi
 }
 
-# Wrapper: set PTY width before Claude launches so auth URLs render as single lines
-# tmux resets PTY width via SIGWINCH on client attach; this re-applies immediately before exec
+# Wrapper: set PTY width and intercept `claude update` (built-in updater fails on read-only image layer)
 claude() {
     stty cols 220 2>/dev/null
+    if [ "$1" = "update" ]; then
+        echo "Updating Claude Code via add-on method (npm --prefix)..."
+        npm install -g @anthropic-ai/claude-code@latest \
+            --prefix /homeassistant/.claudecode/npm-global \
+            --no-fund --no-audit 2>&1
+        hash -r 2>/dev/null
+        echo "Done: $(command claude --version 2>/dev/null)"
+        return 0
+    fi
     command claude "$@"
 }
 

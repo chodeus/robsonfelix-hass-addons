@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.11] - 2026-05-21
+
+### Fixed
+- Running `claude update` from the terminal now works. The built-in updater was detecting a leftover "native" installation at `~/.local/share/claude` and then failing when it tried to update the npm binary in the read-only image layer. The `claude()` wrapper now intercepts `claude update` and routes it through the working npm-prefix method. On startup, any stale native installation is cleaned up to prevent the "multiple installations" conflict from reappearing.
+
 ## [2.3.10] - 2026-05-14
 
 ### Changed

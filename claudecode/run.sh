@@ -83,8 +83,10 @@ mkdir -p "$PERSIST_DIR/local-bin"
 # Remove stale claude from local-bin — AppArmor blocks exec from /root/.local/bin/
 rm -f "$PERSIST_DIR/local-bin/claude" 2>/dev/null || true
 
-mkdir -p "$PERSIST_DIR/local-share-claude" /root/.local/share
-[ ! -L /root/.local/share/claude ] && { rm -rf /root/.local/share/claude; ln -s "$PERSIST_DIR/local-share-claude" /root/.local/share/claude; }
+# Remove native claude installation — causes "multiple installations" conflict with npm-global.
+# No longer persisted; npm-global is the sole update path.
+rm -rf /root/.local/share/claude 2>/dev/null || true
+rm -rf "$PERSIST_DIR/local-share-claude" 2>/dev/null || true
 
 # Report active version (npm-global/bin is first in PATH, so updated version is used automatically)
 if [ -f "$NPM_GLOBAL_DIR/bin/claude" ]; then
