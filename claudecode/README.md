@@ -140,15 +140,37 @@ Pick a model from the `model` dropdown:
 
 | Option | Meaning |
 |--------|---------|
-| `default` | Use your Claude account/subscription default; switch any time with `/model` in a session |
-| `claude-opus-4-7` | Most capable, for complex tasks |
+| `default` | Don't pin a model — let Claude Code decide (see the precedence note below); switch any time with `/model` in a session |
+| `claude-opus-4-8` | Most capable (latest Opus), standard 200K context |
+| `claude-opus-4-8[1m]` | Same Opus 4.8 with the **1M-token context window** (see note below) |
+| `claude-opus-4-7` | Previous Opus generation |
 | `claude-sonnet-4-6` | Balanced speed/capability |
 | `claude-haiku-4-5-20251001` | Fastest, for simple queries |
 | `custom` | Use whatever id you put in `model_custom` |
 
+> **About the 1M context window (`[1m]`):** the `[1m]` suffix is a Claude Code notation — it
+> selects the same `claude-opus-4-8` model but enables the 1-million-token context window. Claude
+> Code strips the suffix before calling the API. Pick the plain `claude-opus-4-8` for the standard
+> 200K context. You can also set this in `model_custom` (enter `claude-opus-4-8[1m]`) or switch
+> in-session with `/model`.
+>
+> **⚠️ Cost / availability:** the 1M-context Opus is plan-gated and **more expensive** — Claude
+> Code's own model picker flags it with a **5× cost multiplier** and a note that it **draws from
+> your usage credits**. It's included on Max/Team/Enterprise (subject to that usage), standard
+> pay-as-you-go pricing on Pro/API. If your plan isn't entitled, a request may return a 4xx error
+> or silently fall back to the 200K context. Use it deliberately for genuinely large-context work;
+> stick with plain `claude-opus-4-8` otherwise.
+
+> **How `default` resolves:** `default` simply leaves the model unpinned (the add-on doesn't set
+> `ANTHROPIC_MODEL`). Claude Code then picks the model by its own precedence: a model in
+> `~/.claude/settings.json` (e.g. one you previously chose with `/model`) wins over the account
+> default. So if you've set a model in-session before, `default` may use *that*, not your
+> subscription default — pin a model in this dropdown if you want a guaranteed choice.
+
 The dropdown keeps the common choices typo-proof. For a model that isn't listed yet (a newer
 release), choose **`custom`** and enter its id in `model_custom` — no add-on update needed. If
-`custom` is selected but `model_custom` is empty, the add-on falls back to the account default.
+`custom` is selected but `model_custom` is empty, the add-on leaves the model unpinned (same as
+`default`).
 
 ## Update Notifications
 

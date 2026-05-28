@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.5.0] - 2026-05-29
+
+### Added
+- **Claude Opus 4.8 added to the model dropdown** as the latest, most capable Opus, in two flavors:
+  - `claude-opus-4-8` — standard 200K context
+  - `claude-opus-4-8[1m]` — same model with the 1M-token context window (Claude Code reads the `[1m]` suffix and enables the extended window; availability/pricing depends on the user's plan)
+- Both are selectable directly in the add-on config — no `custom` field needed. The previous entries (`claude-opus-4-7`, `claude-sonnet-4-6`, `claude-haiku-4-5-20251001`) and `custom` remain. The `run.sh` model handling is data-driven, so each id is passed straight through to `ANTHROPIC_MODEL`.
+
+### Changed
+- README model table and the `model_custom` examples (en/pt-BR/es) updated to reference `claude-opus-4-8`.
+- README now documents the 1M-context cost caveat (Claude Code flags it with a 5× cost multiplier / draws from usage credits; plan-gated) and clarifies how the `default` option actually resolves — it leaves the model unpinned, so a model previously chosen via `/model` in `~/.claude/settings.json` takes precedence over the account default.
+
 ## [2.4.4] - 2026-05-28
 
 ### Changed
