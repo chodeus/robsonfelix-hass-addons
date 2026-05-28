@@ -155,15 +155,21 @@ browser handles scrolling and copy/paste **natively** — there are no special k
 
 ### Authenticating Claude Code (first launch)
 
-On first launch Claude Code prints a long sign-in URL:
+On first launch Claude Code prints a sign-in URL. It is very long (~450 characters) and **wraps
+across several lines** in the terminal. **Don't click it** — the web terminal's link handler only
+captures the first line, so you'll get a truncated, broken URL. Copy the whole thing instead:
 
-1. **Click the link** to open it in a new tab, **or** select the URL with your mouse and copy it
-   (`Cmd/Ctrl+C`) and paste it into your browser's address bar.
-2. Complete authentication in the browser and **copy the auth code** it gives you.
-3. Click back into the terminal and **paste** the code (`Cmd/Ctrl+V` or right-click) at the prompt.
+1. **Drag-select the entire URL** with your mouse — from `https` on the first line down through the
+   last characters on the final line.
+2. **Copy** it (`Cmd/Ctrl+C`, or right-click → Copy). Because the line is soft-wrapped, this copies
+   the full URL as one piece with no line breaks.
+3. **Paste into your browser's address bar** (`Cmd/Ctrl+V`) and press Enter.
+4. Complete authentication in the browser, **copy the auth code** it gives you, click back into the
+   terminal, and **paste** the code (`Cmd/Ctrl+V` or right-click) at the `Paste code here` prompt.
 
-The URL is long and may wrap across several lines on screen — that's fine; selecting and copying it
-(or your browser's address bar) reassembles it into one link.
+> Why not just click the link? The terminal (ttyd/xterm.js) underlines the full wrapped URL but its
+> click handler only returns the first visible row, truncating long URLs. Selecting and copying is
+> the reliable method. This is a one-time step — once authenticated, credentials persist.
 
 ### Trade-offs
 
