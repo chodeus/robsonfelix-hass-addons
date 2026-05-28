@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.13] - 2026-05-28
+
+### Fixed
+- `.bashrc` printed `shopt: not found` on every shell open in 2.3.12. The interactive terminal runs busybox `/bin/sh` (not bash), which sources `.bashrc` via `.profile` but has no `shopt` builtin. The `checkwinsize` call is now guarded behind a `[ -n "$BASH_VERSION" ]` check so it only runs under bash.
+
 ## [2.3.12] - 2026-05-28
 
 ### Fixed

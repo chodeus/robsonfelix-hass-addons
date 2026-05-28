@@ -124,8 +124,11 @@ RUN cat > /root/.bashrc << 'EOF'
 export TERM=xterm-256color
 export LANG=C.UTF-8
 export PATH="/homeassistant/.claudecode/npm-global/bin:/root/.local/bin:$PATH"
-# Let COLUMNS/LINES follow the actual browser window size on every resize (SIGWINCH)
-shopt -s checkwinsize
+# In bash, track the window size on resize so COLUMNS/LINES follow the browser.
+# Guarded: this rc is also sourced by the busybox /bin/sh login shell, which has no `shopt`.
+if [ -n "$BASH_VERSION" ]; then
+    shopt -s checkwinsize
+fi
 PS1='\[\033[1;36m\]claude-code\[\033[0m\]:\[\033[1;34m\]\w\[\033[0m\]\$ '
 
 # Function to update MCP token before starting Claude
