@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.12] - 2026-05-28
+
+### Changed
+- Updated the add-on source URL / image label to the current fork (`chodeus`).
+
 ## [0.1.11] - 2026-02-23
 
 ### Added
