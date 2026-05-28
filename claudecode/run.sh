@@ -3,6 +3,10 @@ set -e
 
 export HA_TOKEN="$SUPERVISOR_TOKEN"
 export HA_URL="http://supervisor/core"
+# ha-mcp connects to HA via the Supervisor proxy using the add-on's Supervisor token
+# (same pattern as the official ha-mcp add-on). Exported so the MCP subprocess inherits them.
+export HOMEASSISTANT_URL="http://supervisor/core"
+export HOMEASSISTANT_TOKEN="$SUPERVISOR_TOKEN"
 # Make bash the default shell (Claude Code + tooling); the image default resolves to busybox /bin/sh
 export SHELL=/bin/bash
 PERSIST_DIR=/homeassistant/.claudecode
@@ -152,21 +156,25 @@ claude mcp remove homeassistant -s user 2>/dev/null || true
 claude mcp remove playwright -s user 2>/dev/null || true
 
 if [ "$ENABLE_MCP" = "true" ]; then
-    claude mcp add-json homeassistant '{"command":"hass-mcp"}' -s user \
+    claude mcp add-json homeassistant '{"command":"ha-mcp"}' -s user \
         || echo '[WARN] Failed to register Home Assistant MCP server (continuing)'
     SETTINGS_FILE=/root/.claude/settings.json
     # add-json writes user-scope config to ~/.claude.json, not settings.json — ensure it exists
     # before the jq edits below, otherwise jq exits non-zero and `set -e` aborts startup
     [ -f "$SETTINGS_FILE" ] || echo '{}' > "$SETTINGS_FILE"
+    # Pre-authorize ha-mcp's read-only tools (no confirmation). Write/management tools
+    # (ha_call_service, ha_config_set_*, ha_bulk_control, ha_restart, ha_remove_*, etc.)
+    # are deliberately NOT listed, so they still prompt for confirmation.
     ALLOWED_TOOLS='[
-      "mcp__homeassistant__get_version",
-      "mcp__homeassistant__get_entity",
-      "mcp__homeassistant__list_entities",
-      "mcp__homeassistant__search_entities_tool",
-      "mcp__homeassistant__domain_summary_tool",
-      "mcp__homeassistant__list_automations",
-      "mcp__homeassistant__get_history",
-      "mcp__homeassistant__get_error_log",
+      "mcp__homeassistant__ha_get_overview",
+      "mcp__homeassistant__ha_search_entities",
+      "mcp__homeassistant__ha_get_state",
+      "mcp__homeassistant__ha_deep_search",
+      "mcp__homeassistant__ha_list_services",
+      "mcp__homeassistant__ha_get_history",
+      "mcp__homeassistant__ha_get_logs",
+      "mcp__homeassistant__ha_get_automation_traces",
+      "mcp__homeassistant__ha_eval_template",
       "Read(/homeassistant/**)",
       "Read(/config/**)",
       "Read(/share/**)",
@@ -179,10 +187,13 @@ if [ "$ENABLE_MCP" = "true" ]; then
     jq --argjson tools "$ALLOWED_TOOLS" \
         '.permissions.allow = ($tools + (.permissions.allow // []) | unique)' \
         "$SETTINGS_FILE" > /tmp/settings.tmp && mv /tmp/settings.tmp "$SETTINGS_FILE"
+    # Inject the HA connection into the server's env config (belt-and-suspenders alongside
+    # the exported HOMEASSISTANT_* vars above, which the MCP subprocess also inherits).
     jq --arg token "$SUPERVISOR_TOKEN" \
-        '.mcpServers.homeassistant.env.HASS_TOKEN = $token' \
+        '.mcpServers.homeassistant.env.HOMEASSISTANT_URL = "http://supervisor/core"
+         | .mcpServers.homeassistant.env.HOMEASSISTANT_TOKEN = $token' \
         "$SETTINGS_FILE" > /tmp/settings.tmp && mv /tmp/settings.tmp "$SETTINGS_FILE"
-    echo '[INFO] MCP configured with Home Assistant integration'
+    echo '[INFO] MCP configured with Home Assistant integration (ha-mcp)'
     echo '[INFO] Pre-authorized read-only MCP tools'
 else
     echo '[INFO] MCP disabled'

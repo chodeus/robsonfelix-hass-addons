@@ -69,8 +69,12 @@ RUN echo "Building add-on ${BUILD_VERSION} - installing latest Claude Code..." &
     npm install -g @anthropic-ai/claude-code@latest --no-fund --no-audit 2>&1 && \
     echo "[INFO] Installed $(claude --version 2>/dev/null)"
 
-# Install hass-mcp for Home Assistant integration and pymodbus for Modbus operations
-RUN pip3 install --no-cache-dir --break-system-packages hass-mcp pymodbus pyserial PyYAML ruamel.yaml
+# Install ha-mcp (Home Assistant MCP server, ~92 tools) plus pymodbus/pyserial/YAML tooling.
+# ha-mcp pulls pydantic-core and cryptography, which ship musl wheels for amd64/aarch64 but
+# build from source (Rust) on other arches — install a temporary build toolchain for that case.
+RUN apk add --no-cache --virtual .pybuild rust cargo gcc musl-dev openssl-dev libffi-dev python3-dev \
+    && pip3 install --no-cache-dir --break-system-packages ha-mcp pymodbus pyserial PyYAML ruamel.yaml \
+    && apk del .pybuild
 
 # Install mbpoll (Modbus command line tool) from source
 RUN apk add --no-cache --virtual .build-deps \
@@ -88,7 +92,7 @@ RUN apk add --no-cache --virtual .build-deps \
     && apk del .build-deps \
     && apk add --no-cache libmodbus
 
-# Pre-cache Playwright MCP server (npx cache avoids /usr/local/bin/mcp conflict with hass-mcp)
+# Pre-cache Playwright MCP server (npx cache avoids a /usr/local/bin/mcp name conflict)
 ENV NPM_CONFIG_CACHE=/root/.npm
 RUN npx @playwright/mcp --version || true
 
@@ -121,11 +125,12 @@ if [ -n "$BASH_VERSION" ]; then
 fi
 PS1='\[\033[1;36m\]claude-code\[\033[0m\]:\[\033[1;34m\]\w\[\033[0m\]\$ '
 
-# Function to update MCP token before starting Claude
+# Function to refresh the HA MCP token before starting Claude (in case the Supervisor
+# token rotated). ha-mcp reads HOMEASSISTANT_TOKEN.
 update_mcp_token() {
   local SETTINGS_FILE=/root/.claude/settings.json
   if [ -f "$SETTINGS_FILE" ] && [ -n "$SUPERVISOR_TOKEN" ]; then
-    jq ".mcpServers.homeassistant.env.HASS_TOKEN = \"$SUPERVISOR_TOKEN\"" "$SETTINGS_FILE" > /tmp/settings.tmp 2>/dev/null && mv /tmp/settings.tmp "$SETTINGS_FILE"
+    jq ".mcpServers.homeassistant.env.HOMEASSISTANT_TOKEN = \"$SUPERVISOR_TOKEN\"" "$SETTINGS_FILE" > /tmp/settings.tmp 2>/dev/null && mv /tmp/settings.tmp "$SETTINGS_FILE"
   fi
 }
 

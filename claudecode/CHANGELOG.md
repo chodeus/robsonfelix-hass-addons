@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.1] - 2026-05-28
+
+### Changed
+- **Replaced `hass-mcp` with [`ha-mcp`](https://github.com/homeassistant-ai/ha-mcp)** as the bundled Home Assistant MCP server. ha-mcp is a superset — it still does everything hass-mcp did (search entities, read state, history, logs, call services) and adds ~92 tools for *managing* HA: create/edit automations, scripts, scenes, dashboards, helpers, areas, zones, labels, backups, traces, and more. It connects via the same Supervisor token (`HOMEASSISTANT_URL=http://supervisor/core`), so no new setup is required. The pre-authorized (no-confirmation) tool list now covers ha-mcp's read-only tools; state-changing tools still prompt.
+- Raw file / `configuration.yaml` editing tools in ha-mcp are beta and remain **disabled** (they require ha-mcp's companion custom component + feature flags). Claude Code's own file tools still have direct read/write access to `/homeassistant`.
+
+### Notes
+- ha-mcp's dependencies (`pydantic-core`, `cryptography`) are Rust-compiled. They install from prebuilt musl wheels on amd64/aarch64; on armv7/armhf/i386 the image build compiles them from source (a temporary Rust toolchain is installed during build), which is slower and may not succeed on every arch. If a build fails on a rare architecture, consider trimming the `arch` list in `config.yaml`.
+
 ## [2.4.0] - 2026-05-28
 
 ### Changed

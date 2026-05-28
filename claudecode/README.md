@@ -20,7 +20,7 @@ claude "Why isn't my motion sensor automation working?"
 
 - **Web Terminal**: Access Claude Code through a browser-based terminal
 - **Config Access**: Read and write Home Assistant configuration files
-- **hass-mcp Integration**: Direct control of HA entities and services
+- **Home Assistant MCP (ha-mcp)**: ~92 tools to query state and *manage* HA — entities, services, automations, scripts, scenes, dashboards, helpers, areas, backups, and more
 - **Session Persistence**: Optional dtach-based persistence to keep sessions alive across page refreshes
 - **Customizable Theme**: Choose between dark and light terminal themes
 - **Multi-Architecture**: Supports amd64, aarch64, armv7, armhf, and i386
@@ -59,12 +59,24 @@ Once authenticated, Claude Code is ready to help with:
 
 ### Home Assistant Integration
 
-With hass-mcp enabled, Claude can:
+The add-on bundles [ha-mcp](https://github.com/homeassistant-ai/ha-mcp), a Home Assistant MCP
+server (~92 tools) that connects automatically via the Supervisor token — no setup needed. With
+it, Claude can both **query** and **manage** Home Assistant:
 
-- Query entity states: "What's the temperature in the living room?"
+- Query state: "What's the temperature in the living room?"
 - Control devices: "Turn off all lights in the bedroom"
-- List services: "What services are available for climate control?"
-- Debug automations: "Why didn't my morning routine trigger?"
+- Create/edit automations & scripts: "Add an automation to turn on the porch light at sunset"
+- Manage dashboards, scenes, helpers, areas, zones, labels
+- Debug automations from execution traces: "Why didn't my morning routine trigger?"
+- Backups, history, statistics, logs, and more
+
+Read-only tools (search, state, history, logs, template eval) run without confirmation;
+state-changing tools (calling services, editing automations, restarting HA, etc.) ask first.
+
+> **Editing raw config files / `configuration.yaml`:** ha-mcp's file and YAML-editing tools are
+> *beta* and disabled by default — they need ha-mcp's companion custom component installed in HA
+> plus feature flags. The 80+ management tools above work without it. (Claude Code also has direct
+> read/write access to `/homeassistant` files via its normal file tools.)
 
 ### Example Commands
 
@@ -232,11 +244,12 @@ Claude Code manages its own authentication. If you have issues:
 
 **Can't copy the URL or paste the auth code?** Copy/paste is native: select with the mouse and press `Cmd/Ctrl+C`, then paste with `Cmd/Ctrl+V` or right-click. See [Authenticating Claude Code (first launch)](#authenticating-claude-code-first-launch).
 
-### hass-mcp not working
+### Home Assistant MCP (ha-mcp) not working
 
 1. Verify `enable_mcp` is true in configuration
-2. Check add-on logs for connection errors
-3. Restart the add-on after configuration changes
+2. In a session, run `claude mcp list` — `homeassistant` should show as connected
+3. Check add-on logs for connection errors
+4. Restart the add-on after configuration changes
 
 ### Terminal not loading
 
