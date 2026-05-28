@@ -3,6 +3,8 @@ set -e
 
 export HA_TOKEN="$SUPERVISOR_TOKEN"
 export HA_URL="http://supervisor/core"
+# Make bash the default shell (tmux + tooling); the image default resolves to busybox /bin/sh
+export SHELL=/bin/bash
 PERSIST_DIR=/homeassistant/.claudecode
 NPM_GLOBAL_DIR="$PERSIST_DIR/npm-global"
 # Prepend writable npm prefix to PATH so any installed update takes priority over the image binary

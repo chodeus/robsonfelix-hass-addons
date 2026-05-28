@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.14] - 2026-05-28
+
+### Changed
+- The interactive terminal now runs **bash** instead of busybox `/bin/sh`. tmux's shell resolved to `/bin/sh` even though the prompt, aliases, and `claude()` wrapper in `.bashrc` are all bash-specific. Added `set -g default-shell /bin/bash` to the tmux config and `export SHELL=/bin/bash` at startup. This makes the colored prompt render correctly (busybox `sh` mishandles bash's `\[ \]` markers), prevents future "works in bash, breaks in sh" issues, and corrects the shell reported to Claude Code (was `/bin/sh`).
+
 ## [2.3.13] - 2026-05-28
 
 ### Fixed

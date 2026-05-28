@@ -111,6 +111,9 @@ RUN mkdir -p \
 
 # Configure tmux with large scrollback buffer and scroll support
 RUN cat > /root/.tmux.conf << 'EOF'
+# Force bash for new panes — the passwd/SHELL default resolves to busybox /bin/sh,
+# but .bashrc/.profile (prompt, aliases, claude() wrapper) are all bash-specific
+set -g default-shell /bin/bash
 set -g history-limit 20000
 # Use primary screen (not alternate) so xterm.js owns the scrollback buffer
 set -ga terminal-overrides ',xterm*:smcup@:rmcup@'
