@@ -12,7 +12,7 @@ All notable changes to this project will be documented in this file.
 - The unauthenticated 220-column width hack in the `claude()` wrapper. Its only purpose was keeping the OAuth URL on one line, which never worked (the URL is far longer than 220) and is now obsolete with dtach. The terminal width always follows the browser viewport.
 
 ### Fixed
-- Documentation: rewrote the stale tmux sections in the README (the removed mouse/copy-mode instructions and the inaccurate "auth URL on a single line" claim) to reflect dtach and native copy/paste.
+- Documentation: rewrote the stale tmux sections in the README (the removed mouse/copy-mode instructions and the inaccurate "auth URL on a single line" claim), added a "Terminal Basics (copy, paste, scroll)" section, and corrected the sign-in steps to select-and-copy the URL rather than click it — all to reflect dtach and native copy/paste.
 
 ## [2.3.14] - 2026-05-28
 

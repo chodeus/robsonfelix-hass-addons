@@ -90,6 +90,25 @@ claude --continue
 | `ha-config` | Navigate to config directory |
 | `ha-logs` | View Home Assistant logs |
 
+### Terminal Basics (copy, paste, scroll)
+
+The terminal uses your browser's native text handling — there are no special key chords to learn.
+
+| Action | How |
+|--------|-----|
+| **Copy** | Select text with the mouse, then `Cmd+C` (macOS) / `Ctrl+C` (Windows/Linux), or right-click → Copy |
+| **Paste** | `Cmd+V` / `Ctrl+V`, or right-click → Paste |
+| **Scroll** | Mouse wheel or the scrollbar (20,000-line buffer) |
+| **Interrupt Claude** | `Esc` (or `Ctrl+C` at the shell) |
+
+> **Copying long lines (e.g. the sign-in URL):** a long line that *looks* wrapped across several
+> rows is still a single line — drag-select the whole thing and copy, and it comes out as one
+> piece with no line breaks. Don't try to click long URLs; the terminal's link handler only grabs
+> the first row. See [Authenticating Claude Code](#authenticating-claude-code-first-launch).
+>
+> On the shell prompt, `Ctrl+C` cancels the current command rather than copying — use `Cmd/Ctrl+C`
+> only when text is selected.
+
 ## Configuration Options
 
 | Option | Description | Default |
@@ -143,12 +162,10 @@ When `session_persistence` is enabled (the default), the add-on wraps your shell
 - Reopening the terminal reattaches you to the same session automatically
 
 Unlike a full terminal multiplexer, dtach does not capture the mouse or reflow output, so the
-browser handles scrolling and copy/paste **natively** — there are no special key chords to learn.
+browser handles scrolling and copy/paste natively (see [Terminal Basics](#terminal-basics-copy-paste-scroll)).
 
 - **Detach**: just close the tab (the session keeps running)
 - **Reattach**: reopen the terminal from the sidebar
-- **Scroll**: mouse wheel / scrollbar (20,000-line buffer, provided by the terminal)
-- **Copy / paste**: select with the mouse + `Cmd/Ctrl+C`; paste with `Cmd/Ctrl+V` or right-click
 
 > Note: the session lives only while the add-on is running. Restarting the add-on starts a fresh
 > session (the same as before — the previous tool used an in-memory session too).
