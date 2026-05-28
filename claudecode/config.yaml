@@ -1,6 +1,6 @@
 name: Claude Code
 description: Run Claude Code AI assistant inside Home Assistant to create automations, debug issues, and manage your smart home configuration
-version: "2.4.1"
+version: "2.4.2"
 slug: claudecode
 url: https://github.com/chodeus/robsonfelix-hass-addons
 arch:
@@ -40,7 +40,8 @@ options:
   working_directory: /homeassistant
   session_persistence: true
   auto_update_claude: true
-  model: ""
+  model: default
+  model_custom: ""
 schema:
   enable_mcp: bool
   enable_playwright_mcp: bool
@@ -50,6 +51,7 @@ schema:
   working_directory: str
   session_persistence: bool
   auto_update_claude: bool
-  model: str?
+  model: list(default|claude-opus-4-7|claude-sonnet-4-6|claude-haiku-4-5-20251001|custom)
+  model_custom: str?
 environment:
   TERM: xterm-256color

@@ -139,16 +139,24 @@ if [ "$AUTO_UPDATE" = "true" ]; then
     fi
 fi
 
-# Set Claude model. Empty (the default) leaves it unset so Claude Code uses your
-# subscription/account default and the in-session `/model` command keeps working.
-# Any model id is accepted here (e.g. claude-opus-4-7), so new models work without an
-# add-on update. "default" is treated the same as empty.
-MODEL=$(jq -r '.model // ""' /data/options.json)
-if [ -n "$MODEL" ] && [ "$MODEL" != "default" ]; then
-    export ANTHROPIC_MODEL="$MODEL"
-    echo "[INFO] Using Claude model: $MODEL"
+# Set Claude model. Pick one from the dropdown, or choose "custom" and put any model id in
+# model_custom (so new models work with no add-on update). "default" leaves it unset, so
+# Claude Code uses your account/subscription default and in-session /model keeps working.
+MODEL=$(jq -r '.model // "default"' /data/options.json)
+MODEL_CUSTOM=$(jq -r '.model_custom // ""' /data/options.json)
+case "$MODEL" in
+    custom)  EFFECTIVE_MODEL="$MODEL_CUSTOM" ;;
+    default) EFFECTIVE_MODEL="" ;;
+    *)       EFFECTIVE_MODEL="$MODEL" ;;
+esac
+if [ "$MODEL" = "custom" ] && [ -z "$MODEL_CUSTOM" ]; then
+    echo "[WARN] model is 'custom' but model_custom is empty — falling back to the account default"
+fi
+if [ -n "$EFFECTIVE_MODEL" ]; then
+    export ANTHROPIC_MODEL="$EFFECTIVE_MODEL"
+    echo "[INFO] Using Claude model: $EFFECTIVE_MODEL"
 else
-    echo "[INFO] Using Claude Code's default model (set 'model' to pin one; /model switches in-session)"
+    echo "[INFO] Using Claude Code's default model (pick one in config, or use /model in-session)"
 fi
 
 # Configure MCP servers

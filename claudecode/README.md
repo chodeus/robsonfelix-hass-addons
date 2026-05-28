@@ -131,23 +131,24 @@ The terminal uses your browser's native text handling — there are no special k
 | `working_directory` | Start directory | /homeassistant |
 | `session_persistence` | Keep the session alive across reconnects (uses dtach) | true |
 | `auto_update_claude` | Auto-update Claude Code (startup + hourly) | true |
-| `model` | Model to pin (empty = account default) | "" (empty) |
+| `model` | Model to use (dropdown; `default` = account default) | default |
+| `model_custom` | Model id used only when `model` is `custom` | "" (empty) |
 
 ### Model Selection
 
-Leave `model` **empty** (the default) to use your Claude account/subscription default — you can
-then switch models any time inside a session with the `/model` command.
+Pick a model from the `model` dropdown:
 
-To pin a specific model, set `model` to its id, e.g.:
-
-| Example id | Notes |
-|------------|-------|
+| Option | Meaning |
+|--------|---------|
+| `default` | Use your Claude account/subscription default; switch any time with `/model` in a session |
 | `claude-opus-4-7` | Most capable, for complex tasks |
 | `claude-sonnet-4-6` | Balanced speed/capability |
 | `claude-haiku-4-5-20251001` | Fastest, for simple queries |
+| `custom` | Use whatever id you put in `model_custom` |
 
-Because `model` is a free-text field, **any** model id works — new Anthropic models are usable as
-soon as Claude Code supports them, with no add-on update needed (pair with `auto_update_claude`).
+The dropdown keeps the common choices typo-proof. For a model that isn't listed yet (a newer
+release), choose **`custom`** and enter its id in `model_custom` — no add-on update needed. If
+`custom` is selected but `model_custom` is empty, the add-on falls back to the account default.
 
 ## Update Notifications
 

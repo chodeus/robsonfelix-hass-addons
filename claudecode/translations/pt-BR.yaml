@@ -47,9 +47,14 @@ configuration:
   model:
     name: Modelo Claude
     description: >-
-      Deixe vazio para usar o modelo padrão da sua conta Claude (e troque com /model na sessão).
-      Para fixar um modelo, informe seu id, ex.: claude-opus-4-7, claude-sonnet-4-6 ou
-      claude-haiku-4-5-20251001. Qualquer id válido funciona — sem precisar atualizar o add-on.
+      Escolha um modelo. "default" usa o padrão da sua conta Claude (troque com /model na
+      sessão). Escolha "custom" para usar qualquer id informado em Modelo (personalizado)
+      abaixo — útil para modelos novos fora desta lista, sem atualizar o add-on.
+  model_custom:
+    name: Modelo (personalizado)
+    description: >-
+      Usado apenas quando Modelo está como "custom". Informe o id exato do modelo,
+      ex.: claude-opus-4-7. Se vazio, o padrão da conta é usado.
 
 network:
   7681/tcp: Terminal Web (ttyd)

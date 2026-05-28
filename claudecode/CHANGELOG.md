@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.2] - 2026-05-28
+
+### Changed
+- **Model selection is a dropdown again** (`default`, the common models, or `custom`), so the everyday choice is typo-proof — fixing the regression in 2.4.0 where a free-text typo would export an invalid `ANTHROPIC_MODEL` and the API would reject every request. Future-proofing is preserved via a new `model_custom` field: choose `custom` and enter any model id (e.g. a newer release) with no add-on update. `default` leaves the model unset (account default + in-session `/model`). If `custom` is chosen but `model_custom` is empty, the add-on falls back to the account default with a warning.
+
 ## [2.4.1] - 2026-05-28
 
 ### Changed
