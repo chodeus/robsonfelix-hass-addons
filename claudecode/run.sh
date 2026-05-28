@@ -135,17 +135,25 @@ if [ "$AUTO_UPDATE" = "true" ]; then
     fi
 fi
 
-# Set Claude model
-MODEL=$(jq -r --arg d claude-sonnet-4-6 '.model // $d' /data/options.json)
-export ANTHROPIC_MODEL="$MODEL"
-echo "[INFO] Using Claude model: $MODEL"
+# Set Claude model. Empty (the default) leaves it unset so Claude Code uses your
+# subscription/account default and the in-session `/model` command keeps working.
+# Any model id is accepted here (e.g. claude-opus-4-7), so new models work without an
+# add-on update. "default" is treated the same as empty.
+MODEL=$(jq -r '.model // ""' /data/options.json)
+if [ -n "$MODEL" ] && [ "$MODEL" != "default" ]; then
+    export ANTHROPIC_MODEL="$MODEL"
+    echo "[INFO] Using Claude model: $MODEL"
+else
+    echo "[INFO] Using Claude Code's default model (set 'model' to pin one; /model switches in-session)"
+fi
 
 # Configure MCP servers
 claude mcp remove homeassistant -s user 2>/dev/null || true
 claude mcp remove playwright -s user 2>/dev/null || true
 
 if [ "$ENABLE_MCP" = "true" ]; then
-    claude mcp add-json homeassistant '{"command":"hass-mcp"}' -s user
+    claude mcp add-json homeassistant '{"command":"hass-mcp"}' -s user \
+        || echo '[WARN] Failed to register Home Assistant MCP server (continuing)'
     SETTINGS_FILE=/root/.claude/settings.json
     # add-json writes user-scope config to ~/.claude.json, not settings.json — ensure it exists
     # before the jq edits below, otherwise jq exits non-zero and `set -e` aborts startup
@@ -183,7 +191,8 @@ fi
 if [ "$ENABLE_PLAYWRIGHT" = "true" ]; then
     claude mcp add-json playwright \
         '{"command":"npx","args":["--no-install","@playwright/mcp","--cdp-endpoint","http://'"$PLAYWRIGHT_HOST"':9222"]}' \
-        -s user
+        -s user \
+        || echo '[WARN] Failed to register Playwright MCP server (continuing)'
     echo "[INFO] Playwright MCP enabled (CDP: http://${PLAYWRIGHT_HOST}:9222)"
     echo '[INFO] Make sure the Playwright Browser add-on is installed and running'
 else
@@ -208,18 +217,34 @@ else
     SHELL_CMD='bash --login'
 fi
 
-# Background update checker — runs hourly, posts HA notification when update is available
+# Background update checker — runs hourly. When auto_update_claude is on it installs new
+# Claude Code releases as they land (no restart needed); otherwise it just notifies.
+# Installing into the npm prefix is safe mid-session: an already-running `claude` keeps the
+# code it loaded at startup, and the next `claude` invocation picks up the new version.
 (while true; do
     IV=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
     LV=$(npm show @anthropic-ai/claude-code version 2>/dev/null)
     if [ -n "$LV" ] && [ -n "$IV" ] && [ "$IV" != "$LV" ]; then
-        echo "$LV" > "$PERSIST_DIR/.update_notice"
-        echo "[INFO] Claude Code update available: $LV (installed: $IV)"
-        printf '{"title":"Claude Code Update Available","message":"Version %s is available (installed: %s). Restart the add-on to update.","notification_id":"claude_code_update"}' "$LV" "$IV" \
-            | curl -sf -X POST \
-              -H "Authorization: Bearer $SUPERVISOR_TOKEN" \
-              -H "Content-Type: application/json" \
-              -d @- http://supervisor/core/api/services/persistent_notification/create 2>/dev/null || true
+        if [ "$AUTO_UPDATE" = "true" ]; then
+            echo "[INFO] Auto-updating Claude Code $IV -> $LV (active sessions keep $IV until restarted)..."
+            npm install -g "@anthropic-ai/claude-code@$LV" \
+                --prefix "$NPM_GLOBAL_DIR" --no-fund --no-audit 2>&1 || true
+            echo "[INFO] Claude Code now at: $(claude --version 2>/dev/null)"
+            rm -f "$PERSIST_DIR/.update_notice" 2>/dev/null
+            printf '{"notification_id":"claude_code_update"}' \
+                | curl -sf -X POST \
+                  -H "Authorization: Bearer $SUPERVISOR_TOKEN" \
+                  -H "Content-Type: application/json" \
+                  -d @- http://supervisor/core/api/services/persistent_notification/dismiss 2>/dev/null || true
+        else
+            echo "$LV" > "$PERSIST_DIR/.update_notice"
+            echo "[INFO] Claude Code update available: $LV (installed: $IV)"
+            printf '{"title":"Claude Code Update Available","message":"Version %s is available (installed: %s). Restart the add-on or run claude-update to install.","notification_id":"claude_code_update"}' "$LV" "$IV" \
+                | curl -sf -X POST \
+                  -H "Authorization: Bearer $SUPERVISOR_TOKEN" \
+                  -H "Content-Type: application/json" \
+                  -d @- http://supervisor/core/api/services/persistent_notification/create 2>/dev/null || true
+        fi
     else
         rm -f "$PERSIST_DIR/.update_notice" 2>/dev/null
         printf '{"notification_id":"claude_code_update"}' \

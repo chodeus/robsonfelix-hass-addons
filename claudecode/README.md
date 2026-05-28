@@ -118,20 +118,24 @@ The terminal uses your browser's native text handling — there are no special k
 | `terminal_theme` | dark or light | dark |
 | `working_directory` | Start directory | /homeassistant |
 | `session_persistence` | Keep the session alive across reconnects (uses dtach) | true |
-| `auto_update_claude` | Auto-update Claude Code on startup | true |
-| `model` | Claude model to use | claude-sonnet-4-6 |
+| `auto_update_claude` | Auto-update Claude Code (startup + hourly) | true |
+| `model` | Model to pin (empty = account default) | "" (empty) |
 
 ### Model Selection
 
-Three models are available:
+Leave `model` **empty** (the default) to use your Claude account/subscription default — you can
+then switch models any time inside a session with the `/model` command.
 
-| Model | Best for |
-|-------|----------|
-| `claude-sonnet-4-6` | Best balance of speed and capability (default) |
-| `claude-opus-4-6` | Most powerful, for complex tasks |
+To pin a specific model, set `model` to its id, e.g.:
+
+| Example id | Notes |
+|------------|-------|
+| `claude-opus-4-7` | Most capable, for complex tasks |
+| `claude-sonnet-4-6` | Balanced speed/capability |
 | `claude-haiku-4-5-20251001` | Fastest, for simple queries |
 
-Enable `auto_update_claude` to ensure new models become available as Anthropic releases them, without needing an add-on update.
+Because `model` is a free-text field, **any** model id works — new Anthropic models are usable as
+soon as Claude Code supports them, with no add-on update needed (pair with `auto_update_claude`).
 
 ## Update Notifications
 
@@ -254,5 +258,5 @@ After changing configuration:
 
 ## Support
 
-- [GitHub Issues](https://github.com/robsonfelix/robsonfelix-hass-addons/issues)
+- [GitHub Issues](https://github.com/chodeus/robsonfelix-hass-addons/issues)
 - [Home Assistant Community](https://community.home-assistant.io/)

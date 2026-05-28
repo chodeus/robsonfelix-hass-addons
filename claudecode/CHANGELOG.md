@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.0] - 2026-05-28
+
+### Changed
+- **Model selection is now future-proof.** The `model` option is a free-text field instead of a fixed dropdown. Leave it **empty** (the new default) to use your Claude account/subscription default and switch models in-session with `/model`; set it to any model id (e.g. `claude-opus-4-7`) to pin one. New Anthropic models work the moment Claude Code supports them — no add-on update needed. Previously the option always forced `ANTHROPIC_MODEL`, overriding `/model` and the subscription default, and the hardcoded list went stale on every model release.
+- **Auto-update now keeps Claude Code current without a restart.** When `auto_update_claude` is on, the hourly background checker installs new releases as they land (previously it only posted a notification and updates happened solely at startup). Installing into the npm prefix is safe mid-session — a running `claude` keeps the version it loaded, and the next launch picks up the update. With auto-update off, it still just notifies.
+
+### Fixed
+- Startup no longer aborts if `claude mcp add-json` fails — the MCP registration calls are guarded so a transient failure logs a warning instead of killing the add-on (`set -e`).
+- Made the add-on source URLs consistent (config.yaml, build.yaml, Dockerfile label, README) — they pointed at three different forks.
+
 ## [2.3.15] - 2026-05-28
 
 ### Changed
