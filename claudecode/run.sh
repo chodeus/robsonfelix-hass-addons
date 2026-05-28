@@ -100,6 +100,7 @@ SESSION_PERSIST=$(jq -r '.session_persistence // true' /data/options.json)
 ENABLE_MCP=$(jq -r '.enable_mcp // true' /data/options.json)
 ENABLE_PLAYWRIGHT=$(jq -r '.enable_playwright_mcp // false' /data/options.json)
 PLAYWRIGHT_HOST=$(jq -r --arg d '' '.playwright_cdp_host // $d' /data/options.json)
+WORKING_DIR=$(jq -r --arg d /homeassistant '.working_directory // $d' /data/options.json)
 
 # Auto-detect Playwright Browser hostname if not explicitly set
 if [ -z "$PLAYWRIGHT_HOST" ] && [ "$ENABLE_PLAYWRIGHT" = "true" ]; then
@@ -144,6 +145,9 @@ claude mcp remove playwright -s user 2>/dev/null || true
 if [ "$ENABLE_MCP" = "true" ]; then
     claude mcp add-json homeassistant '{"command":"hass-mcp"}' -s user
     SETTINGS_FILE=/root/.claude/settings.json
+    # add-json writes user-scope config to ~/.claude.json, not settings.json — ensure it exists
+    # before the jq edits below, otherwise jq exits non-zero and `set -e` aborts startup
+    [ -f "$SETTINGS_FILE" ] || echo '{}' > "$SETTINGS_FILE"
     ALLOWED_TOOLS='[
       "mcp__homeassistant__get_version",
       "mcp__homeassistant__get_entity",
@@ -222,7 +226,7 @@ fi
 done) &
 
 # Start web terminal
-cd /homeassistant
+cd "$WORKING_DIR" 2>/dev/null || cd /homeassistant
 exec ttyd --port 7681 --writable --ping-interval 30 --max-clients 5 \
     -t fontSize="$FONT_SIZE" \
     -t fontFamily=Monaco,Consolas,monospace \

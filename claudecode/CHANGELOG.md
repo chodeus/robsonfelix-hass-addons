@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.12] - 2026-05-28
+
+### Fixed
+- Terminal rendering was broken on first open (badly wrapped/clipped output) until the tab was closed and reopened. Root cause: the shell force-pinned the PTY to a fixed 220 columns (`stty cols 220`, `COLUMNS=220`), which didn't match the real browser viewport — Claude Code rendered 220-wide while xterm.js wrapped/clipped at the actual width. The width is now pinned to 220 **only while unauthenticated** (so the one-time OAuth login URL stays on a single clickable line); once credentials exist the terminal follows the browser window size via SIGWINCH (`checkwinsize`), fixing the everyday rendering. Reopening the tab "fixed" it before only because the resize event restored the correct width.
+- `working_directory` config option was ignored — startup always `cd`'d to `/homeassistant`. It is now respected (falls back to `/homeassistant` if the path is invalid).
+- Possible fresh-install startup crash: `set -e` plus an unguarded `jq` against `settings.json` (which `claude mcp add-json -s user` does not create) could abort startup. The file is now created if missing before the jq edits.
+- `/data` (the add-on's private volume) could not be listed — AppArmor granted `/data/** rwk` but not `/data/ r` for the directory itself, so `ls /data` was denied while known paths still worked. Added `/data/ r`.
+
+### Added
+- Pre-installed `PyYAML` and `ruamel.yaml` in the image. Runtime `pip install` fails on the read-only root layer, so YAML libraries could not be added on demand — they now ship in the image.
+- Added `file`, `fd`, and `yq` command-line utilities.
+
 ## [2.3.11] - 2026-05-21
 
 ### Fixed

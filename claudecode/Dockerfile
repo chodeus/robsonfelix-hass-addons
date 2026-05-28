@@ -41,6 +41,9 @@ RUN apk add --no-cache \
     p7zip \
     socat \
     docker-cli \
+    file \
+    fd \
+    yq \
     && update-ca-certificates
 
 # Install ttyd static binary (avoids libwebsockets issues)
@@ -67,7 +70,7 @@ RUN echo "Building add-on ${BUILD_VERSION} - installing latest Claude Code..." &
     echo "[INFO] Installed $(claude --version 2>/dev/null)"
 
 # Install hass-mcp for Home Assistant integration and pymodbus for Modbus operations
-RUN pip3 install --no-cache-dir --break-system-packages hass-mcp pymodbus pyserial
+RUN pip3 install --no-cache-dir --break-system-packages hass-mcp pymodbus pyserial PyYAML ruamel.yaml
 
 # Install mbpoll (Modbus command line tool) from source
 RUN apk add --no-cache --virtual .build-deps \
@@ -120,8 +123,9 @@ EOF
 RUN cat > /root/.bashrc << 'EOF'
 export TERM=xterm-256color
 export LANG=C.UTF-8
-export COLUMNS=220
 export PATH="/homeassistant/.claudecode/npm-global/bin:/root/.local/bin:$PATH"
+# Let COLUMNS/LINES follow the actual browser window size on every resize (SIGWINCH)
+shopt -s checkwinsize
 PS1='\[\033[1;36m\]claude-code\[\033[0m\]:\[\033[1;34m\]\w\[\033[0m\]\$ '
 
 # Function to update MCP token before starting Claude
@@ -132,9 +136,14 @@ update_mcp_token() {
   fi
 }
 
-# Wrapper: set PTY width and intercept `claude update` (built-in updater fails on read-only image layer)
+# Wrapper: intercept `claude update` (built-in updater fails on read-only image layer)
 claude() {
-    stty cols 220 2>/dev/null
+    # Only while unauthenticated, widen the PTY so the one-time OAuth URL stays on a
+    # single clickable line (a hard wrap breaks the link). Once credentials exist, leave
+    # the width alone so the TUI follows the browser viewport and renders correctly.
+    if [ ! -s /root/.claude/.credentials.json ]; then
+        stty cols 220 2>/dev/null
+    fi
     if [ "$1" = "update" ]; then
         echo "Updating Claude Code via add-on method (npm --prefix)..."
         npm install -g @anthropic-ai/claude-code@latest \
@@ -159,8 +168,6 @@ EOF
 # Create update notification script and wire into .bashrc
 RUN echo '[ -f /homeassistant/.claudecode/.update_notice ] && echo -e "\033[1;33m[UPDATE AVAILABLE]\033[0m Claude Code $(cat /homeassistant/.claudecode/.update_notice) available - restart the add-on or run: claude-update"' > /root/.claude-notify.sh
 RUN echo 'source /root/.claude-notify.sh' >> /root/.bashrc
-# Set PTY width so Node.js apps (like Claude Code) read 220 cols via ioctl, not just the COLUMNS shell var
-RUN echo 'stty cols 220 rows 50 2>/dev/null || true' >> /root/.bashrc
 
 # Ensure .bashrc is sourced for login shells too
 RUN echo 'source ~/.bashrc' > /root/.profile
