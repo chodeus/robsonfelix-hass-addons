@@ -3,7 +3,7 @@ set -e
 
 export HA_TOKEN="$SUPERVISOR_TOKEN"
 export HA_URL="http://supervisor/core"
-# Make bash the default shell (tmux + tooling); the image default resolves to busybox /bin/sh
+# Make bash the default shell (Claude Code + tooling); the image default resolves to busybox /bin/sh
 export SHELL=/bin/bash
 PERSIST_DIR=/homeassistant/.claudecode
 NPM_GLOBAL_DIR="$PERSIST_DIR/npm-global"
@@ -197,9 +197,13 @@ else
     COLORS='background=#eff1f5,foreground=#4c4f69,cursor=#dc8a78'
 fi
 
-# Set shell command based on session persistence setting
+# Set shell command based on session persistence setting.
+# dtach is a thin detach/attach wrapper (not a terminal emulator like tmux): it passes output
+# straight through to xterm.js, so long lines stay soft-wrapped and clickable, and native
+# browser copy/paste works. -A attach-or-create, -E no detach char, -z pass suspend key,
+# -r winch redraw on reattach. The master daemonizes so the session survives tab close.
 if [ "$SESSION_PERSIST" = "true" ]; then
-    SHELL_CMD='tmux new-session -A -s claude'
+    SHELL_CMD='dtach -A /tmp/claude.dtach -E -z -r winch bash --login'
 else
     SHELL_CMD='bash --login'
 fi

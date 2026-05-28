@@ -36,7 +36,7 @@ configuration:
   session_persistence:
     name: Persistência de Sessão
     description: >-
-      Habilita persistência de sessão via tmux. Quando habilitado, sua sessão
+      Mantém sua sessão ativa entre reconexões (usando dtach). Quando habilitado, sua sessão
       do terminal sobrevive a atualizações do navegador e desconexões.
       Recomendado para tarefas de longa duração.
   auto_update_claude:

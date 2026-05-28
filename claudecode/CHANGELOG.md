@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.15] - 2026-05-28
+
+### Changed
+- Replaced **tmux** with **dtach** for session persistence. tmux is a full terminal emulator that reflows long lines into separate rows before redrawing, which stripped the soft-wrap continuity xterm.js needs — so the ~450-char OAuth login URL only linkified its first row and couldn't be clicked. dtach is a thin detach/attach wrapper (no terminal emulation): output passes straight through to xterm.js, so the URL stays a single soft-wrapped line and native browser copy/paste (select + Cmd/Ctrl+C, right-click, Cmd/Ctrl+V) works again. Session persistence is unchanged — sessions still survive browser refresh/disconnect and background tasks keep running. Scrollback is now provided by xterm.js (`scrollback=20000`).
+
+### Removed
+- The unauthenticated 220-column width hack in the `claude()` wrapper. Its only purpose was keeping the OAuth URL on one line, which never worked (the URL is far longer than 220) and is now obsolete with dtach. The terminal width always follows the browser viewport.
+
+### Fixed
+- Documentation: rewrote the stale tmux sections in the README (the removed mouse/copy-mode instructions and the inaccurate "auth URL on a single line" claim) to reflect dtach and native copy/paste.
+
 ## [2.3.14] - 2026-05-28
 
 ### Changed

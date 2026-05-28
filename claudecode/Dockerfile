@@ -29,7 +29,7 @@ RUN apk add --no-cache \
     ncurses \
     vim \
     nano \
-    tmux \
+    dtach \
     coreutils \
     findutils \
     grep \
@@ -109,19 +109,6 @@ RUN mkdir -p \
     /root/.config \
     /root/.local/bin
 
-# Configure tmux with large scrollback buffer and scroll support
-RUN cat > /root/.tmux.conf << 'EOF'
-# Force bash for new panes — the passwd/SHELL default resolves to busybox /bin/sh,
-# but .bashrc/.profile (prompt, aliases, claude() wrapper) are all bash-specific
-set -g default-shell /bin/bash
-set -g history-limit 20000
-# Use primary screen (not alternate) so xterm.js owns the scrollback buffer
-set -ga terminal-overrides ',xterm*:smcup@:rmcup@'
-# Mouse off: browser/xterm.js handles scrolling and copy/paste natively
-# This fixes touch scrolling on iPad and standard copy/paste on all devices
-set -g mouse off
-EOF
-
 # Configure bash with aliases and prompt
 RUN cat > /root/.bashrc << 'EOF'
 export TERM=xterm-256color
@@ -144,12 +131,6 @@ update_mcp_token() {
 
 # Wrapper: intercept `claude update` (built-in updater fails on read-only image layer)
 claude() {
-    # Only while unauthenticated, widen the PTY so the one-time OAuth URL stays on a
-    # single clickable line (a hard wrap breaks the link). Once credentials exist, leave
-    # the width alone so the TUI follows the browser viewport and renders correctly.
-    if [ ! -s /root/.claude/.credentials.json ]; then
-        stty cols 220 2>/dev/null
-    fi
     if [ "$1" = "update" ]; then
         echo "Updating Claude Code via add-on method (npm --prefix)..."
         npm install -g @anthropic-ai/claude-code@latest \
