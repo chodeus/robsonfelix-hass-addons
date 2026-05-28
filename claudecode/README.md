@@ -41,7 +41,7 @@ On first launch, Claude Code will prompt you to authenticate:
 
 1. Open the terminal from the HA sidebar
 2. Type `claude` to start
-3. Follow the authentication prompts
+3. Follow the authentication prompts — see [Authenticating Claude Code (first launch)](#authenticating-claude-code-first-launch) for how to get the long sign-in URL into your browser (select-and-copy, don't click it)
 4. Your credentials are stored securely by Claude Code
 
 **Note**: The add-on does NOT require you to enter API keys in the configuration. Claude Code handles authentication itself, storing credentials securely in its own configuration directory. This is more secure than storing keys in Home Assistant's add-on config.

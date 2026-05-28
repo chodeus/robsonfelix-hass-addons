@@ -40,7 +40,15 @@ When users mention `/config/...`, translate to `/homeassistant/...`
 
 ## Home Assistant Integration
 
-Use the `homeassistant` MCP server to query entities and call services.
+The `homeassistant` MCP server (ha-mcp) gives you ~92 tools to both query and manage HA:
+- Read: `ha_get_overview`, `ha_search_entities`, `ha_get_state`, `ha_get_history`, `ha_get_logs`,
+  `ha_get_automation_traces`, `ha_eval_template`, `ha_list_services`
+- Manage: `ha_call_service`, `ha_bulk_control`, and `ha_config_set_*` / `ha_config_get_*` for
+  automations, scripts, scenes, dashboards, helpers, areas, zones, labels, plus backups
+- Use `ha_search_tools` (if tool search is enabled) or the tool list to discover the rest
+
+Read-only tools run without confirmation; state-changing tools ask first. Prefer the MCP tools
+for entity/automation work; use direct file edits under `/homeassistant` for raw YAML.
 
 ## Reading Home Assistant Logs
 

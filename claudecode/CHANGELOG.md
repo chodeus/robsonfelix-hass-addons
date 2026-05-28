@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.3] - 2026-05-28
+
+### Fixed
+- Documentation refresh after the 2.3.x–2.4.x changes:
+  - The in-container `CLAUDE.md` (Claude's own context) now describes ha-mcp's ~92 tools (read + manage) instead of "query entities and call services", so the agent knows it can create/edit automations, dashboards, etc. via MCP.
+  - README Setup now points first-time users to the select-and-copy sign-in instructions (clicking the long OAuth URL doesn't work).
+  - `repository.yaml` URL updated to the current fork.
+
 ## [2.4.2] - 2026-05-28
 
 ### Changed
