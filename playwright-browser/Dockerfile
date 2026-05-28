@@ -2,7 +2,7 @@ ARG BUILD_FROM
 FROM ${BUILD_FROM}
 
 # Labels
-LABEL maintainer="Robson Felix"
+LABEL maintainer="chodeus"
 LABEL io.hass.version="0.1.0"
 LABEL io.hass.type="addon"
 LABEL io.hass.arch="amd64,aarch64"

@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.13] - 2026-05-28
+
+### Changed
+- Updated the Dockerfile `maintainer` image label to `chodeus`.
+
 ## [0.1.12] - 2026-05-28
 
 ### Changed
