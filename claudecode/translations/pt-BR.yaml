@@ -48,15 +48,15 @@ configuration:
     name: Modelo Claude
     description: >-
       Escolha um modelo. "default" usa o padrão da sua conta Claude (troque com /model na
-      sessão). "claude-opus-4-8" tem contexto padrão de 200K; "claude-opus-4-8[1m]" é o mesmo
-      modelo com janela de contexto de 1M tokens (disponibilidade depende do seu plano). Escolha
-      "custom" para usar qualquer id informado em Modelo (personalizado) abaixo — útil para modelos
-      novos fora desta lista, sem atualizar o add-on.
+      sessão). "claude-fable-5" é o mais capaz (novo nível acima do Opus); as variantes "[1m]"
+      usam o mesmo modelo com janela de contexto de 1M tokens (disponibilidade e preço dependem
+      do seu plano). Escolha "custom" para usar qualquer id informado em Modelo (personalizado)
+      abaixo — útil para modelos novos fora desta lista, sem atualizar o add-on.
   model_custom:
     name: Modelo (personalizado)
     description: >-
       Usado apenas quando Modelo está como "custom". Informe o id exato do modelo,
-      ex.: claude-opus-4-8. Se vazio, o padrão da conta é usado.
+      ex.: claude-fable-5. Se vazio, o padrão da conta é usado.
 
 network:
   7681/tcp: Terminal Web (ttyd)

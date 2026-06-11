@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.0] - 2026-06-11
+
+### Added
+- **Claude Fable 5 added to the model dropdown** — the new top model tier above Opus, in two flavors:
+  - `claude-fable-5` — standard 200K context
+  - `claude-fable-5[1m]` — same model with the 1M-token context window (Claude Code reads the `[1m]` suffix; availability/pricing depends on the user's plan)
+- No `run.sh` changes needed — model handling is data-driven and passes the id straight through to `ANTHROPIC_MODEL`.
+
+### Changed
+- **Haiku dropdown entry switched from the dated id `claude-haiku-4-5-20251001` to the alias `claude-haiku-4-5`** (the alias auto-tracks model snapshots). If you had the dated id selected, re-pick Haiku in the add-on config after updating — the old stored value is no longer in the dropdown list.
+- README model table and 1M-context notes updated for Fable 5: Fable 5 is now listed as most capable, Opus 4.8 as latest Opus; the `[1m]` explanation covers both models. The Opus 4.8 5× cost-multiplier note is kept as-is (verified in Claude Code's picker); Fable 5's 1M premium is described without a specific multiplier.
+- Model option descriptions (en/es/pt-BR translations) updated to reference `claude-fable-5` and the generic `[1m]` variants.
+
 ## [2.5.0] - 2026-05-29
 
 ### Added

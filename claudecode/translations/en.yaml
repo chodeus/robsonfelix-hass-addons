@@ -46,15 +46,15 @@ configuration:
     name: Claude Model
     description: >-
       Pick a model. "default" uses your Claude account default (switch with /model in a
-      session). "claude-opus-4-8" is standard 200K context; "claude-opus-4-8[1m]" is the same
-      model with the 1M-token context window (availability depends on your plan). Choose "custom"
-      to use any model id entered in Model (custom) below — handy for newer models not in this
-      list, with no add-on update needed.
+      session). "claude-fable-5" is the most capable (new top tier above Opus); the "[1m]"
+      variants use the same model with the 1M-token context window (availability and pricing
+      depend on your plan). Choose "custom" to use any model id entered in Model (custom)
+      below — handy for newer models not in this list, with no add-on update needed.
   model_custom:
     name: Model (custom)
     description: >-
       Only used when Model is set to "custom". Enter the exact model id,
-      e.g. claude-opus-4-8. If left empty, the account default is used.
+      e.g. claude-fable-5. If left empty, the account default is used.
 
 network:
   7681/tcp: Web Terminal (ttyd)

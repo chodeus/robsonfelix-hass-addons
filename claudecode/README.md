@@ -141,25 +141,28 @@ Pick a model from the `model` dropdown:
 | Option | Meaning |
 |--------|---------|
 | `default` | Don't pin a model — let Claude Code decide (see the precedence note below); switch any time with `/model` in a session |
-| `claude-opus-4-8` | Most capable (latest Opus), standard 200K context |
+| `claude-fable-5` | Most capable — the new top tier above Opus, standard 200K context |
+| `claude-fable-5[1m]` | Same Fable 5 with the **1M-token context window** (see note below) |
+| `claude-opus-4-8` | Latest Opus, standard 200K context |
 | `claude-opus-4-8[1m]` | Same Opus 4.8 with the **1M-token context window** (see note below) |
 | `claude-opus-4-7` | Previous Opus generation |
 | `claude-sonnet-4-6` | Balanced speed/capability |
-| `claude-haiku-4-5-20251001` | Fastest, for simple queries |
+| `claude-haiku-4-5` | Fastest, for simple queries |
 | `custom` | Use whatever id you put in `model_custom` |
 
 > **About the 1M context window (`[1m]`):** the `[1m]` suffix is a Claude Code notation — it
-> selects the same `claude-opus-4-8` model but enables the 1-million-token context window. Claude
-> Code strips the suffix before calling the API. Pick the plain `claude-opus-4-8` for the standard
-> 200K context. You can also set this in `model_custom` (enter `claude-opus-4-8[1m]`) or switch
-> in-session with `/model`.
+> selects the same model but enables the 1-million-token context window (works for both
+> `claude-fable-5[1m]` and `claude-opus-4-8[1m]`). Claude Code strips the suffix before calling
+> the API. Pick the plain id for the standard 200K context. You can also set this in
+> `model_custom` (enter e.g. `claude-fable-5[1m]`) or switch in-session with `/model`.
 >
-> **⚠️ Cost / availability:** the 1M-context Opus is plan-gated and **more expensive** — Claude
-> Code's own model picker flags it with a **5× cost multiplier** and a note that it **draws from
-> your usage credits**. It's included on Max/Team/Enterprise (subject to that usage), standard
-> pay-as-you-go pricing on Pro/API. If your plan isn't entitled, a request may return a 4xx error
-> or silently fall back to the 200K context. Use it deliberately for genuinely large-context work;
-> stick with plain `claude-opus-4-8` otherwise.
+> **⚠️ Cost / availability:** the 1M-context variants are plan-gated and **more expensive** —
+> Claude Code's model picker flags Opus 4.8's 1M variant with a **5× cost multiplier** and a note
+> that it **draws from your usage credits**; expect a similar premium on Fable 5's 1M variant.
+> Fable 5 is also priced above Opus 4.8 even at standard context. 1M context is included on
+> Max/Team/Enterprise (subject to that usage), standard pay-as-you-go pricing on Pro/API. If your
+> plan isn't entitled, a request may return a 4xx error or silently fall back to the 200K context.
+> Use it deliberately for genuinely large-context work; stick with the plain id otherwise.
 
 > **How `default` resolves:** `default` simply leaves the model unpinned (the add-on doesn't set
 > `ANTHROPIC_MODEL`). Claude Code then picks the model by its own precedence: a model in
