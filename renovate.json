@@ -1,6 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["github>chodeus/chodeus-ops"],
+  "forkProcessing": "enabled",
   "customManagers": [
     {
       "description": "Home Assistant add-on base images declared in build.yaml build_from (Dockerfiles use FROM ${BUILD_FROM}, so the native dockerfile manager can't see them)",
