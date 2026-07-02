@@ -131,7 +131,7 @@ if [ -z "$PLAYWRIGHT_HOST" ] && [ "$ENABLE_PLAYWRIGHT" = "true" ]; then
 fi
 
 # Auto-update Claude Code on startup if enabled
-AUTO_UPDATE=$(jq -r '.auto_update_claude // true' /data/options.json)
+AUTO_UPDATE=$(jq -r '.auto_update_claude // false' /data/options.json)
 if [ "$AUTO_UPDATE" = "true" ]; then
     CURRENT_VER=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
     LATEST_VER=$(npm show @anthropic-ai/claude-code version 2>/dev/null)
@@ -203,12 +203,10 @@ if [ "$ENABLE_MCP" = "true" ]; then
     jq --argjson tools "$ALLOWED_TOOLS" \
         '.permissions.allow = ($tools + (.permissions.allow // []) | unique)' \
         "$SETTINGS_FILE" > /tmp/settings.tmp && mv /tmp/settings.tmp "$SETTINGS_FILE"
-    # Inject the HA connection into the server's env config (belt-and-suspenders alongside
-    # the exported HOMEASSISTANT_* vars above, which the MCP subprocess also inherits).
-    jq --arg token "$SUPERVISOR_TOKEN" \
-        '.mcpServers.homeassistant.env.HOMEASSISTANT_URL = "http://supervisor/core"
-         | .mcpServers.homeassistant.env.HOMEASSISTANT_TOKEN = $token' \
-        "$SETTINGS_FILE" > /tmp/settings.tmp && mv /tmp/settings.tmp "$SETTINGS_FILE"
+    # The ha-mcp subprocess gets the HA connection from the exported HOMEASSISTANT_* env vars
+    # (lines 8-9), which it inherits. We deliberately do NOT persist the Supervisor token into
+    # settings.json: that file is symlinked into the backed-up/shared HA config dir, so a written
+    # token would leak into HA backups and any add-on mapping homeassistant_config:ro.
     echo '[INFO] MCP configured with Home Assistant integration (ha-mcp)'
     echo '[INFO] Pre-authorized read-only MCP tools'
 else

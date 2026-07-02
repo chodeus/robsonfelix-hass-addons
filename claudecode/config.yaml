@@ -39,7 +39,7 @@ options:
   terminal_theme: dark
   working_directory: /homeassistant
   session_persistence: true
-  auto_update_claude: true
+  auto_update_claude: false
   model: default
   model_custom: ""
 schema:
