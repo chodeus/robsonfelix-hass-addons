@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.1] - 2026-07-03
+
+### Changed
+- Default `auto_update_claude` to **off** — Claude Code no longer installs `@latest` as root on startup unless you opt in
+
+### Fixed
+- Stop persisting the Supervisor manager token into `settings.json` (it otherwise lands in HA backups / config-mapped add-ons); the exported `HOMEASSISTANT_*` env vars already provide the Home Assistant connection
+
 ## [2.6.0] - 2026-06-11
 
 ### Added
