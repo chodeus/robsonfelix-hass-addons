@@ -11,9 +11,8 @@ arch:
 # Uncomment after the GHCR builder workflow has published public images for this version;
 # with it commented, the Supervisor builds locally from this repo as before.
 # image: ghcr.io/chodeus/claudecode-{arch}
-startup: application
-boot: auto
-init: true
+# startup: application, boot: auto, init: true (Docker tini) are the Supervisor defaults —
+# left unset per the add-on linter; do NOT set init: false (that switches to s6-overlay /init)
 ingress: true
 ingress_port: 7681
 ingress_stream: true

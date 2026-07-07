@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
   - New tmux config: mouse on (required for wheel scrolling in Claude; use Shift+drag for native browser selection), 50,000-line shell history, OSC 52 clipboard passthrough, hidden status bar. The now-unused `dtach` package is removed from the image
   - `.bashrc` no longer overrides `TERM` inside tmux (tmux's `screen-256color` stays authoritative in panes; unchanged outside tmux)
 - Removed the redundant `uart: true` permission — `full_access: true` already maps all host devices, including serial
+- Removed explicit Supervisor defaults from config.yaml (`startup: application`, `boot: auto`, `init: true`) — required by the add-on linter, no behavior change (`init` still defaults to `true`/tini)
 - **OSC 52 clipboard bridge**: ttyd's page is served with a small script that forwards OSC 52 clipboard writes to the browser, so Claude's in-app copy (drag-select, double-click a URL) and tmux yanks actually land in your clipboard; falls back to the stock page if extraction fails
 - **Dropped armv7/armhf/i386**: Claude Code ships x64/arm64 binaries only (verified against the npm package), so those arches never actually worked on current versions
 - Dockerfile dotfiles (`.bashrc`, `.profile`, `.claude-notify.sh`, new `.tmux.conf`) moved from `RUN` heredocs to a `rootfs/` `COPY` layout (required by the HA builder for pre-built images)
