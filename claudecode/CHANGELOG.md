@@ -20,7 +20,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - **SSE4.2 pre-flight check** (x86-64): warns at startup when the CPU masks SSE4.2 — Claude Code's runtime crashes without it — with explicit Proxmox "set CPU type to `host`" guidance
-- **GitHub Actions builder workflow** (lint + amd64/aarch64 image build, `--test` on PRs) publishing to `ghcr.io/chodeus/claudecode-{arch}`. `image:` stays commented in `config.yaml` (local builds continue) until the workflow has published public images — uncomment it then to switch users to fast pre-built installs
+- **Pre-built images**: new GitHub Actions builder workflow (lint + amd64/aarch64 image build, `--test` on PRs) publishes `ghcr.io/chodeus/claudecode-{arch}`, and `config.yaml` now points at them — installs/updates pull a ready image instead of building for minutes on-device (verified publicly pullable before enabling)
 - Hourly update checker's npm queries now run under a 30s timeout, and a failed registry query can no longer abort add-on startup (when auto-update is on) or silently kill the hourly checker — both were latent `set -e` traps
 - README Security section now documents the accepted ttyd trust model (no terminal-level login; protected by HA ingress auth, no published host port; reachable by other add-on containers on the internal network)
 

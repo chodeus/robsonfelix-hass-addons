@@ -8,9 +8,9 @@ url: https://github.com/chodeus/robsonfelix-hass-addons
 arch:
   - amd64
   - aarch64
-# Uncomment after the GHCR builder workflow has published public images for this version;
-# with it commented, the Supervisor builds locally from this repo as before.
-# image: ghcr.io/chodeus/claudecode-{arch}
+# Pre-built by .github/workflows/builder.yaml — the published tag must match `version`
+# above before this file referencing it lands (the workflow pushes on merge to main).
+image: ghcr.io/chodeus/claudecode-{arch}
 # startup: application, boot: auto, init: true (Docker tini) are the Supervisor defaults —
 # left unset per the add-on linter; do NOT set init: false (that switches to s6-overlay /init)
 ingress: true
