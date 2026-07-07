@@ -16,17 +16,19 @@ export PATH="$NPM_GLOBAL_DIR/bin:$PATH"
 
 mkdir -p "$PERSIST_DIR/config" "$NPM_GLOBAL_DIR" /root/.config
 
-# Write CLAUDE.md for Claude's context
-cat > "$PERSIST_DIR/CLAUDE.md" << 'CLAUDEMD'
+# Write the add-on's context/guidance file. It is imported from CLAUDE.md (below) rather
+# than written into it: ~/.claude/CLAUDE.md is Claude Code's user-memory file (/memory edits
+# land there), so overwriting it every start would destroy the user's saved notes.
+cat > "$PERSIST_DIR/CLAUDE.addon.md" << 'CLAUDEMD'
 # Claude Code - Home Assistant Add-on
 
 ## Path Mapping
 
 In this add-on container, paths are mapped differently than HA Core:
 - `/homeassistant` = HA config directory (equivalent to `/config` in HA Core)
-- `/config` does NOT exist - always use `/homeassistant`
+- `/config` here is the ADD-ON's private config folder (addon_configs), NOT the HA config
 
-When users mention `/config/...`, translate to `/homeassistant/...`
+When users mention `/config/...`, they almost always mean HA's config - translate to `/homeassistant/...`
 
 ## Available Paths
 
@@ -84,10 +86,37 @@ logger:
 **Key insight:** `_LOGGER.debug()` calls are invisible unless the logger level is set to debug. Use `_LOGGER.info()` or `_LOGGER.warning()` for logs that should always appear.
 CLAUDEMD
 
+# CLAUDE.md itself is created only if missing (it doubles as the user's /memory file, so it
+# is never replaced — /memory notes must survive). Existing installs just get the import line
+# prepended; any old-template text left behind is the user's to prune (lossless by design).
+CLAUDE_IMPORT='@~/.claude/CLAUDE.addon.md'
+if [ ! -f "$PERSIST_DIR/CLAUDE.md" ]; then
+    printf '%s\n\n# Your notes\n\nAdd project notes here (or via /memory in a session) - the add-on will not overwrite this file.\n' "$CLAUDE_IMPORT" > "$PERSIST_DIR/CLAUDE.md"
+elif ! grep -qF "$CLAUDE_IMPORT" "$PERSIST_DIR/CLAUDE.md"; then
+    printf '%s\n\n%s\n' "$CLAUDE_IMPORT" "$(cat "$PERSIST_DIR/CLAUDE.md")" > "$PERSIST_DIR/CLAUDE.md"
+fi
+
 # Persistence symlinks — keep Claude auth and config across container rebuilds
 [ ! -L /root/.claude ] && { rm -rf /root/.claude; ln -s "$PERSIST_DIR" /root/.claude; }
 [ ! -L /root/.config/claude-code ] && { rm -rf /root/.config/claude-code; ln -s "$PERSIST_DIR/config" /root/.config/claude-code; }
 [ ! -L /root/.claude.json ] && { touch "$PERSIST_DIR/.claude.json"; rm -f /root/.claude.json; ln -s "$PERSIST_DIR/.claude.json" /root/.claude.json; }
+
+# One-time scrub: older versions (and the since-removed update_mcp_token bashrc helper)
+# persisted the Supervisor token into the add-on's "homeassistant" MCP server config. Those
+# files are symlinked into /homeassistant, i.e. captured by HA backups — remove the token at
+# rest. Scoped to the server this add-on manages; user-added MCP servers are never touched.
+# The MCP server gets the token from the exported HOMEASSISTANT_* env vars instead.
+for f in "$PERSIST_DIR/settings.json" "$PERSIST_DIR/.claude.json"; do
+    [ -s "$f" ] || continue
+    if jq -e '(.mcpServers.homeassistant.env // {}) | (has("HOMEASSISTANT_TOKEN") or has("HASS_TOKEN"))' "$f" > /dev/null 2>&1; then
+        if jq '.mcpServers.homeassistant.env |= del(.HOMEASSISTANT_TOKEN, .HASS_TOKEN)' \
+            "$f" > /tmp/scrub.tmp 2>/dev/null && mv /tmp/scrub.tmp "$f"; then
+            echo "[INFO] Removed legacy Supervisor token from $(basename "$f")"
+        else
+            echo "[WARN] Could not scrub legacy token from $(basename "$f") (continuing)"
+        fi
+    fi
+done
 
 # Persist ~/.local/bin and ~/.local/share/claude across container rebuilds.
 # claude update stores symlinks in local-bin and actual version binaries in local-share-claude.
@@ -105,6 +134,14 @@ rm -rf "$PERSIST_DIR/local-share-claude" 2>/dev/null || true
 # Report active version (npm-global/bin is first in PATH, so updated version is used automatically)
 if [ -f "$NPM_GLOBAL_DIR/bin/claude" ]; then
     echo "[INFO] Using npm-updated Claude Code: $(claude --version 2>/dev/null)"
+fi
+
+# Claude Code's bundled runtime (Bun) requires SSE4.2 on x86-64. Virtualized CPUs that
+# mask it (e.g. Proxmox's default kvm64 CPU type) make claude crash instantly with SIGILL.
+# Warn but still start the terminal so the message is visible.
+if [ "$(uname -m)" = "x86_64" ] && ! grep -qm1 sse4_2 /proc/cpuinfo 2>/dev/null; then
+    echo '[WARN] This CPU does not advertise SSE4.2 — Claude Code will likely crash on launch.'
+    echo '[WARN] Proxmox/QEMU users: set the VM CPU type to "host" (not kvm64) and restart the VM.'
 fi
 
 # Read options from HA config
@@ -134,7 +171,7 @@ fi
 AUTO_UPDATE=$(jq -r '.auto_update_claude // false' /data/options.json)
 if [ "$AUTO_UPDATE" = "true" ]; then
     CURRENT_VER=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-    LATEST_VER=$(npm show @anthropic-ai/claude-code version 2>/dev/null)
+    LATEST_VER=$(timeout 30 npm show @anthropic-ai/claude-code version 2>/dev/null || true)
     if [ -n "$LATEST_VER" ] && [ -n "$CURRENT_VER" ] && [ "$CURRENT_VER" != "$LATEST_VER" ]; then
         echo "[INFO] Updating Claude Code from $CURRENT_VER to $LATEST_VER..."
         # Install into the writable persisted prefix — avoids read-only Docker layer restriction
@@ -232,15 +269,52 @@ else
 fi
 
 # Set shell command based on session persistence setting.
-# dtach is a thin detach/attach wrapper (not a terminal emulator like tmux): it passes output
-# straight through to xterm.js, so long lines stay soft-wrapped and clickable, and native
-# browser copy/paste works. -A attach-or-create, -E no detach char, -z pass suspend key,
-# -r winch redraw on reattach. The master daemonizes so the session survives tab close.
+# tmux (not dtach): ttyd's frontend resets the browser-side terminal on every ingress
+# reconnect, and dtach's winch redraw restores neither content nor terminal modes — every
+# websocket blip left a blank screen. tmux fully re-establishes terminal state on reattach
+# (alternate screen, mouse tracking, complete repaint), so Claude's fullscreen UI survives
+# tab closes and reconnects with its scrollable history intact.
 if [ "$SESSION_PERSIST" = "true" ]; then
-    SHELL_CMD='dtach -A /tmp/claude.dtach -E -z -r winch bash --login'
+    SHELL_CMD='tmux -u new-session -A -s claude bash --login'
 else
     SHELL_CMD='bash --login'
 fi
+
+# Fullscreen rendering (research preview, Claude Code >= 2.1.89): the conversation lives in
+# an in-app mouse-wheel-scrollable buffer instead of terminal scrollback — which the classic
+# renderer erases on every repaint (CSI 3 J), the root cause of "can't scroll back" reports.
+# Ctrl+O opens the full searchable transcript. Opt out per-session with /tui default.
+export CLAUDE_CODE_NO_FLICKER=1
+# Convention shared with other HA terminal add-ons for ttyd-conditional shell config
+export TTYD=1
+
+# OSC 52 clipboard bridge: serve ttyd's own index page with a small script appended that
+# forwards OSC 52 clipboard writes (Claude's in-app copy, tmux set-clipboard) to the browser
+# clipboard — stock ttyd drops them. Extracted from a throwaway ttyd instance so the page
+# always matches the running binary; on any failure we fall back to the stock page.
+TTYD_INDEX_ARGS=""
+TMP_SOCK=/tmp/ttyd-extract.sock
+rm -f "$TMP_SOCK"
+ttyd -i "$TMP_SOCK" sh -c 'sleep 30' > /dev/null 2>&1 &
+TTYD_TMP_PID=$!
+for _ in $(seq 1 20); do
+    [ -S "$TMP_SOCK" ] && curl -sf --unix-socket "$TMP_SOCK" http://localhost/ -o /tmp/ttyd-index.orig.html && break
+    sleep 0.25
+done
+kill "$TTYD_TMP_PID" 2>/dev/null || true
+rm -f "$TMP_SOCK"
+if [ -s /tmp/ttyd-index.orig.html ] && grep -q '</body>' /tmp/ttyd-index.orig.html; then
+    if python3 - << 'PYEOF'
+snippet = open('/usr/local/share/claudecode/osc52.html').read()
+orig = open('/tmp/ttyd-index.orig.html').read()
+open('/tmp/ttyd-index.html', 'w').write(orig.replace('</body>', snippet + '</body>', 1))
+PYEOF
+    then
+        TTYD_INDEX_ARGS="-I /tmp/ttyd-index.html"
+        echo '[INFO] OSC 52 clipboard bridge enabled'
+    fi
+fi
+[ -z "$TTYD_INDEX_ARGS" ] && echo '[WARN] OSC 52 clipboard bridge unavailable — using stock ttyd page (Shift+drag copy still works)'
 
 # Background update checker — runs hourly. When auto_update_claude is on it installs new
 # Claude Code releases as they land (no restart needed); otherwise it just notifies.
@@ -248,7 +322,7 @@ fi
 # code it loaded at startup, and the next `claude` invocation picks up the new version.
 (while true; do
     IV=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-    LV=$(npm show @anthropic-ai/claude-code version 2>/dev/null)
+    LV=$(timeout 30 npm show @anthropic-ai/claude-code version 2>/dev/null || true)
     if [ -n "$LV" ] && [ -n "$IV" ] && [ "$IV" != "$LV" ]; then
         if [ "$AUTO_UPDATE" = "true" ]; then
             echo "[INFO] Auto-updating Claude Code $IV -> $LV (active sessions keep $IV until restarted)..."
@@ -284,8 +358,10 @@ done) &
 # Start web terminal
 cd "$WORKING_DIR" 2>/dev/null || cd /homeassistant
 exec ttyd --port 7681 --writable --ping-interval 30 --max-clients 5 \
+    $TTYD_INDEX_ARGS \
     -t fontSize="$FONT_SIZE" \
     -t fontFamily=Monaco,Consolas,monospace \
     -t scrollback=20000 \
+    -t disableLeaveAlert=true \
     -t "theme=$COLORS" \
     $SHELL_CMD

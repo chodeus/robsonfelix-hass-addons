@@ -1,0 +1,50 @@
+<script>
+/* OSC 52 clipboard bridge: stock ttyd 1.7.7 registers no OSC 52 handler, so clipboard
+ * writes from Claude Code's in-app copy (double-click a URL, drag-select) and tmux
+ * set-clipboard are silently dropped. This forwards them to the browser clipboard.
+ * Injected after </body> of ttyd's own index page by start-addon.sh. */
+(function () {
+  function decodeBase64Utf8(b64) {
+    var bin = atob(b64);
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder('utf-8').decode(bytes);
+  }
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) { /* best effort */ }
+    document.body.removeChild(ta);
+    if (window.term) { window.term.focus(); }
+  }
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).catch(function () { fallbackCopy(text); });
+    } else {
+      fallbackCopy(text);
+    }
+  }
+  var tries = 0;
+  var timer = setInterval(function () {
+    if (window.term && window.term.parser && window.term.parser.registerOscHandler) {
+      clearInterval(timer);
+      window.term.parser.registerOscHandler(52, function (data) {
+        /* format: "<selection>;<base64 payload>"; a payload of "?" is a read request */
+        var idx = data.indexOf(';');
+        if (idx < 0) return true;
+        var payload = data.slice(idx + 1);
+        if (payload === '?') return true; /* never expose the clipboard to the tty */
+        try { copyText(decodeBase64Utf8(payload)); } catch (e) { /* ignore bad payloads */ }
+        return true;
+      });
+    } else if (++tries > 150) {
+      clearInterval(timer);
+    }
+  }, 100);
+})();
+</script>

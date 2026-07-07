@@ -36,9 +36,9 @@ configuration:
   session_persistence:
     name: Persistencia de Sesión
     description: >-
-      Mantén tu sesión activa entre reconexiones (usando dtach). Cuando está habilitado, tu sesión
-      del terminal sobrevive a actualizaciones del navegador y desconexiones.
-      Recomendado para tareas de larga duración.
+      Mantén tu sesión activa entre reconexiones (usando tmux). Cuando está habilitado, tu sesión
+      y su historial visible sobreviven a actualizaciones del navegador, cierres de pestaña y
+      cortes de conexión. Recomendado para tareas de larga duración.
   auto_update_claude:
     name: Actualización Automática de Claude Code
     description: >-

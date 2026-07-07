@@ -1,14 +1,16 @@
 name: Claude Code
 description: Run Claude Code AI assistant inside Home Assistant to create automations, debug issues, and manage your smart home configuration
-version: "2.6.1"
+version: "2.7.0"
 slug: claudecode
 url: https://github.com/chodeus/robsonfelix-hass-addons
+# Claude Code ships platform binaries for x64/arm64 only (incl. musl) — 32-bit arches
+# (armv7/armhf/i386) cannot run it and were dropped in 2.7.0.
 arch:
   - amd64
   - aarch64
-  - armv7
-  - armhf
-  - i386
+# Uncomment after the GHCR builder workflow has published public images for this version;
+# with it commented, the Supervisor builds locally from this repo as before.
+# image: ghcr.io/chodeus/claudecode-{arch}
 startup: application
 boot: auto
 init: true
@@ -21,8 +23,8 @@ homeassistant_api: true
 auth_api: true
 hassio_api: true
 hassio_role: manager
-uart: true
 docker_api: true
+# full_access already maps all host devices (incl. serial/UART), so no separate uart flag
 full_access: true
 map:
   - homeassistant_config:rw

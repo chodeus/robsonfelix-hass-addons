@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.0] - 2026-07-07
+
+### Changed
+- **Terminal overhaul — Claude output is finally scrollable and survives reconnects.** Root causes: Claude Code's classic renderer erases terminal scrollback on every repaint (`CSI 3 J`), and ttyd resets the browser terminal on every ingress reconnect while dtach replays nothing. Fix is a pairing:
+  - `session_persistence` now uses **tmux** instead of dtach — tmux fully re-establishes terminal state (alternate screen, mouse, repaint) on reattach, so the session *and its visible history* survive tab closes and connection blips
+  - Claude Code now starts in **fullscreen rendering mode** (`CLAUDE_CODE_NO_FLICKER=1`): mouse-wheel scrolling through the whole conversation, `Ctrl+O` searchable transcript, no more scrollback wipes. Opt out per-session with `/tui default`
+  - New tmux config: mouse on (required for wheel scrolling in Claude; use Shift+drag for native browser selection), 50,000-line shell history, OSC 52 clipboard passthrough, hidden status bar. The now-unused `dtach` package is removed from the image
+  - `.bashrc` no longer overrides `TERM` inside tmux (tmux's `screen-256color` stays authoritative in panes; unchanged outside tmux)
+- Removed the redundant `uart: true` permission — `full_access: true` already maps all host devices, including serial
+- **OSC 52 clipboard bridge**: ttyd's page is served with a small script that forwards OSC 52 clipboard writes to the browser, so Claude's in-app copy (drag-select, double-click a URL) and tmux yanks actually land in your clipboard; falls back to the stock page if extraction fails
+- **Dropped armv7/armhf/i386**: Claude Code ships x64/arm64 binaries only (verified against the npm package), so those arches never actually worked on current versions
+- Dockerfile dotfiles (`.bashrc`, `.profile`, `.claude-notify.sh`, new `.tmux.conf`) moved from `RUN` heredocs to a `rootfs/` `COPY` layout (required by the HA builder for pre-built images)
+- **Base image bumped to Alpine 3.24** (`base-python:3.13-alpine3.24`) — Alpine 3.21 leaves security support 2026-11-01; 3.24 is the newest HA-published base (supported into 2028). The `yq` apk package was renamed upstream to `yq-go` (same tool, still installs the `yq` binary)
+- Auth instructions updated: double-click the sign-in URL inside Claude to copy it whole (Shift+drag + address-bar paste as fallback)
+
+### Added
+- **SSE4.2 pre-flight check** (x86-64): warns at startup when the CPU masks SSE4.2 — Claude Code's runtime crashes without it — with explicit Proxmox "set CPU type to `host`" guidance
+- **GitHub Actions builder workflow** (lint + amd64/aarch64 image build, `--test` on PRs) publishing to `ghcr.io/chodeus/claudecode-{arch}`. `image:` stays commented in `config.yaml` (local builds continue) until the workflow has published public images — uncomment it then to switch users to fast pre-built installs
+- Hourly update checker's npm queries now run under a 30s timeout, and a failed registry query can no longer abort add-on startup (when auto-update is on) or silently kill the hourly checker — both were latent `set -e` traps
+- README Security section now documents the accepted ttyd trust model (no terminal-level login; protected by HA ingress auth, no published host port; reachable by other add-on containers on the internal network)
+
+### Fixed
+- **Finish the 2.6.1 "no token at rest" fix**: removed the `update_mcp_token()` bashrc helper — it re-wrote the Supervisor token into backup-included `settings.json` every time `c`/`cc` was used, undoing 2.6.1. A one-time startup scrub now removes any previously persisted `HOMEASSISTANT_TOKEN`/`HASS_TOKEN` from `settings.json`/`.claude.json` — scoped strictly to the add-on's own `homeassistant` MCP server entry, so user-added MCP servers (e.g. one pointing at a remote HA with its own token) are never touched; the MCP server keeps getting the token from env vars only
+- **`/memory` edits no longer lost on restart**: the add-on wrote its guidance directly into `~/.claude/CLAUDE.md` (Claude's user-memory file) on every start, clobbering user notes. Guidance now lives in `CLAUDE.addon.md` (refreshed each start) and is pulled in via an `@~/.claude/CLAUDE.addon.md` import; `CLAUDE.md` itself is created once and then left alone
+- README drift: `auto_update_claude` default corrected to `false`; update-notification section now describes the actual behavior (notify when auto-update is off, silent install when on); generated guidance no longer claims `/config` doesn't exist (it's the add-on's private config dir)
+
 ## [2.6.1] - 2026-07-03
 
 ### Changed

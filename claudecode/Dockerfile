@@ -29,7 +29,7 @@ RUN apk add --no-cache \
     ncurses \
     vim \
     nano \
-    dtach \
+    tmux \
     coreutils \
     findutils \
     grep \
@@ -43,7 +43,7 @@ RUN apk add --no-cache \
     docker-cli \
     file \
     fd \
-    yq \
+    yq-go \
     && update-ca-certificates
 
 # Install ttyd static binary (avoids libwebsockets issues)
@@ -51,8 +51,6 @@ ARG BUILD_ARCH
 RUN case "${BUILD_ARCH}" in \
         amd64) TTYD_ARCH="x86_64" ;; \
         aarch64) TTYD_ARCH="aarch64" ;; \
-        armv7|armhf) TTYD_ARCH="armhf" ;; \
-        i386) TTYD_ARCH="i686" ;; \
         *) TTYD_ARCH="x86_64" ;; \
     esac && \
     curl -fsSL "https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.${TTYD_ARCH}" -o /usr/bin/ttyd && \
@@ -100,8 +98,6 @@ RUN npx @playwright/mcp --version || true
 RUN case "${BUILD_ARCH}" in \
         amd64) HA_ARCH="amd64" ;; \
         aarch64) HA_ARCH="aarch64" ;; \
-        armv7|armhf) HA_ARCH="armhf" ;; \
-        i386) HA_ARCH="i386" ;; \
         *) HA_ARCH="amd64" ;; \
     esac && \
     curl -fsSL "https://github.com/home-assistant/cli/releases/latest/download/ha_${HA_ARCH}" -o /usr/local/bin/ha && \
@@ -113,56 +109,10 @@ RUN mkdir -p \
     /root/.config \
     /root/.local/bin
 
-# Configure bash with aliases and prompt
-RUN cat > /root/.bashrc << 'EOF'
-export TERM=xterm-256color
-export LANG=C.UTF-8
-export PATH="/homeassistant/.claudecode/npm-global/bin:/root/.local/bin:$PATH"
-# In bash, track the window size on resize so COLUMNS/LINES follow the browser.
-# Guarded: this rc is also sourced by the busybox /bin/sh login shell, which has no `shopt`.
-if [ -n "$BASH_VERSION" ]; then
-    shopt -s checkwinsize
-fi
-PS1='\[\033[1;36m\]claude-code\[\033[0m\]:\[\033[1;34m\]\w\[\033[0m\]\$ '
-
-# Function to refresh the HA MCP token before starting Claude (in case the Supervisor
-# token rotated). ha-mcp reads HOMEASSISTANT_TOKEN.
-update_mcp_token() {
-  local SETTINGS_FILE=/root/.claude/settings.json
-  if [ -f "$SETTINGS_FILE" ] && [ -n "$SUPERVISOR_TOKEN" ]; then
-    jq ".mcpServers.homeassistant.env.HOMEASSISTANT_TOKEN = \"$SUPERVISOR_TOKEN\"" "$SETTINGS_FILE" > /tmp/settings.tmp 2>/dev/null && mv /tmp/settings.tmp "$SETTINGS_FILE"
-  fi
-}
-
-# Wrapper: intercept `claude update` (built-in updater fails on read-only image layer)
-claude() {
-    if [ "$1" = "update" ]; then
-        echo "Updating Claude Code via add-on method (npm --prefix)..."
-        npm install -g @anthropic-ai/claude-code@latest \
-            --prefix /homeassistant/.claudecode/npm-global \
-            --no-fund --no-audit 2>&1
-        hash -r 2>/dev/null
-        echo "Done: $(command claude --version 2>/dev/null)"
-        return 0
-    fi
-    command claude "$@"
-}
-
-# Aliases
-alias ll='ls -la'
-alias c='update_mcp_token && claude'
-alias cc='update_mcp_token && claude --continue'
-alias ha-config='cd /homeassistant'
-alias ha-logs='cat /homeassistant/home-assistant.log 2>/dev/null || echo "Log not found"'
-alias claude-update='echo "Updating Claude Code..." && npm install -g @anthropic-ai/claude-code@latest --prefix /homeassistant/.claudecode/npm-global --no-fund --no-audit 2>&1; hash -r 2>/dev/null; echo "Done: $(command claude --version 2>/dev/null)"'
-EOF
-
-# Create update notification script and wire into .bashrc
-RUN echo '[ -f /homeassistant/.claudecode/.update_notice ] && echo -e "\033[1;33m[UPDATE AVAILABLE]\033[0m Claude Code $(cat /homeassistant/.claudecode/.update_notice) available - restart the add-on or run: claude-update"' > /root/.claude-notify.sh
-RUN echo 'source /root/.claude-notify.sh' >> /root/.bashrc
-
-# Ensure .bashrc is sourced for login shells too
-RUN echo 'source ~/.bashrc' > /root/.profile
+# Dotfiles (.bashrc, .profile, .claude-notify.sh, .tmux.conf) and the OSC 52 clipboard
+# snippet live in rootfs/ — plain files instead of RUN heredocs, which the HA builder's
+# Docker parser rejects (required for pre-built GHCR images).
+COPY rootfs/ /
 
 # Copy startup script to a path AppArmor allows execution from
 COPY run.sh /usr/local/bin/start-addon.sh
