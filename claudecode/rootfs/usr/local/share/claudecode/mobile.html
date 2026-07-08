@@ -166,13 +166,35 @@
   }
 
   /* --- keyboard-aware layout --- */
+  /* Inside the HA ingress iframe the on-screen keyboard never resizes the iframe and
+   * never fires the iframe's own visualViewport events — only the TOP page's visual
+   * viewport shrinks. The ingress iframe is same-origin with the HA frontend, so
+   * measure through window.top and clip our iframe's rect to the visible region. */
+  var topVV = null;
+  try {
+    if (window.top !== window && window.frameElement) topVV = window.top.visualViewport;
+  } catch (e) { /* cross-origin parent — fall back to our own viewport */ }
+
+  function visibleHeight() {
+    try {
+      if (topVV) {
+        var rect = window.frameElement.getBoundingClientRect();
+        return Math.max(0, Math.round(
+          Math.min(rect.height, topVV.offsetTop + topVV.height - rect.top)));
+      }
+    } catch (e) { /* fall through */ }
+    var vv = window.visualViewport;
+    return Math.round(vv ? vv.height : window.innerHeight);
+  }
+
   var bar = null;
   var layoutQueued = false;
   function layout() {
     layoutQueued = false;
     var vv = window.visualViewport;
-    var top = vv ? vv.offsetTop : 0;
-    var h = Math.round(vv ? vv.height : window.innerHeight);
+    var top = (!topVV && vv) ? vv.offsetTop : 0;
+    var h = visibleHeight();
+    if (h < 80) return; /* mid-animation glitch or occluded iframe — keep the last layout */
     document.documentElement.style.height = h + 'px';
     document.body.style.height = h + 'px';
     if (bar) bar.style.top = (top + h - BAR_H) + 'px';
@@ -354,7 +376,18 @@
         vv.addEventListener('resize', queueLayout);
         vv.addEventListener('scroll', queueLayout);
       }
+      if (topVV) {
+        topVV.addEventListener('resize', queueLayout);
+        topVV.addEventListener('scroll', queueLayout);
+      }
       window.addEventListener('orientationchange', queueLayout);
+      /* the keyboard animates in over ~250ms — re-measure around focus changes even
+       * when no viewport event reaches this frame */
+      ['focusin', 'focusout'].forEach(function (type) {
+        document.addEventListener(type, function () {
+          [50, 300, 600].forEach(function (ms) { setTimeout(queueLayout, ms); });
+        });
+      });
       layout();
     } else if (++tries > 150) {
       clearInterval(initTimer);

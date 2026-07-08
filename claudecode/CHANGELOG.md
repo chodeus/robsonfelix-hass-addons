@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.2] - 2026-07-08
+
+### Fixed
+- **Keyboard refit now actually fires inside Home Assistant ingress** (2.7.1's refit worked only when ttyd was opened directly): the on-screen keyboard never resizes the ingress iframe and never fires the iframe's own `visualViewport` events — only the top HA page's visual viewport shrinks. The shim now measures through `window.top` (same origin) and clips the iframe's rect to the top page's visible region, so the terminal — and the key bar — shrink above the keyboard and the line being typed stays visible. Focus changes also trigger delayed re-measures to cover missed viewport events during the keyboard animation
+
 ## [2.7.1] - 2026-07-08
 
 ### Added
