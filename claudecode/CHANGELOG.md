@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.1] - 2026-07-08
+
+### Added
+- **Mobile touch shim** (`mobile.html`, injected into ttyd's page like the OSC 52 bridge; touch devices only). xterm.js has no touch support — on a phone the 2.7.0 scrollable terminal wasn't scrollable at all:
+  - **One-finger drag scrolls** (with flick momentum): drags are synthesized into wheel events, which tmux/Claude Code already understand; falls back to viewport scrolling when no app owns the mouse
+  - **Long-press-then-drag selects and copies**: synthesized into a mouse drag so tmux/Claude do their own selection and OSC 52 copy on release — the standard iOS gesture, minus native handles
+  - **Key bar** (`esc` `tab` `⇧tab` arrows `^c` `paste`) for keys iOS keyboards lack — without Esc you couldn't even interrupt Claude; arrows auto-repeat on hold; paste uses the clipboard-permission gesture
+  - **Keyboard-aware refit**: ttyd only refits on window `resize`, which the iOS keyboard doesn't fire — a `visualViewport` listener now shrinks the terminal so the prompt stays above the keyboard
+  - **Foreground auto-reconnect**: iOS kills the websocket when the app is backgrounded, and ttyd's stock page can sit at "Press ⏎ to Reconnect" (no Enter key in sight). Returning to a dead socket now reloads the page; tmux restores the session in full
+
+### Fixed
+- **OSC 52 copy actually lands on the clipboard on iOS**: Safari refuses clipboard writes that don't stem from a user gesture, and the OSC 52 payload arrives over the websocket — copies silently vanished. A "📋 Tap to copy" toast now appears when the direct write fails; the tap supplies the gesture. Desktop behavior unchanged
+- Resize overlay (`80×24` flash) disabled — it fired on every phone-keyboard open/close
+
 ## [2.7.0] - 2026-07-07
 
 ### Changed

@@ -288,10 +288,12 @@ export CLAUDE_CODE_NO_FLICKER=1
 # Convention shared with other HA terminal add-ons for ttyd-conditional shell config
 export TTYD=1
 
-# OSC 52 clipboard bridge: serve ttyd's own index page with a small script appended that
-# forwards OSC 52 clipboard writes (Claude's in-app copy, tmux set-clipboard) to the browser
-# clipboard — stock ttyd drops them. Extracted from a throwaway ttyd instance so the page
-# always matches the running binary; on any failure we fall back to the stock page.
+# Injected page snippets: serve ttyd's own index page with scripts appended — the OSC 52
+# clipboard bridge (forwards Claude's in-app copy and tmux set-clipboard to the browser
+# clipboard; stock ttyd drops them) and the mobile touch shim (touch scrolling, long-press
+# selection, key bar, keyboard-aware refit, foreground reconnect). Extracted from a throwaway
+# ttyd instance so the page always matches the running binary; on any failure we fall back
+# to the stock page.
 TTYD_INDEX_ARGS=""
 TMP_SOCK=/tmp/ttyd-extract.sock
 rm -f "$TMP_SOCK"
@@ -305,16 +307,23 @@ kill "$TTYD_TMP_PID" 2>/dev/null || true
 rm -f "$TMP_SOCK"
 if [ -s /tmp/ttyd-index.orig.html ] && grep -q '</body>' /tmp/ttyd-index.orig.html; then
     if python3 - << 'PYEOF'
-snippet = open('/usr/local/share/claudecode/osc52.html').read()
+snippets = ''
+for path in ('/usr/local/share/claudecode/osc52.html',
+             '/usr/local/share/claudecode/mobile.html'):
+    try:
+        snippets += open(path).read()
+    except OSError:
+        pass
+assert snippets
 orig = open('/tmp/ttyd-index.orig.html').read()
-open('/tmp/ttyd-index.html', 'w').write(orig.replace('</body>', snippet + '</body>', 1))
+open('/tmp/ttyd-index.html', 'w').write(orig.replace('</body>', snippets + '</body>', 1))
 PYEOF
     then
         TTYD_INDEX_ARGS="-I /tmp/ttyd-index.html"
-        echo '[INFO] OSC 52 clipboard bridge enabled'
+        echo '[INFO] OSC 52 clipboard bridge + mobile touch shim enabled'
     fi
 fi
-[ -z "$TTYD_INDEX_ARGS" ] && echo '[WARN] OSC 52 clipboard bridge unavailable — using stock ttyd page (Shift+drag copy still works)'
+[ -z "$TTYD_INDEX_ARGS" ] && echo '[WARN] Page snippets unavailable — using stock ttyd page (no touch scrolling; Shift+drag copy still works)'
 
 # Background update checker — runs hourly. When auto_update_claude is on it installs new
 # Claude Code releases as they land (no restart needed); otherwise it just notifies.
@@ -363,5 +372,6 @@ exec ttyd --port 7681 --writable --ping-interval 30 --max-clients 5 \
     -t fontFamily=Monaco,Consolas,monospace \
     -t scrollback=20000 \
     -t disableLeaveAlert=true \
+    -t disableResizeOverlay=true \
     -t "theme=$COLORS" \
     $SHELL_CMD
