@@ -2,15 +2,22 @@
 /* OSC 52 clipboard bridge: stock ttyd 1.7.7 registers no OSC 52 handler, so clipboard
  * writes from Claude Code's in-app copy (double-click a URL, drag-select) and tmux
  * set-clipboard are silently dropped. This forwards them to the browser clipboard.
- * Injected after </body> of ttyd's own index page by start-addon.sh. */
+ * Injected at the end of the body of ttyd's own index page by start-addon.sh.
+ *
+ * iOS/Safari refuses clipboard writes that don't stem from a user gesture, and the
+ * OSC 52 payload arrives over the websocket — so when the direct write fails we show
+ * a "tap to copy" toast; the tap supplies the gesture. */
 (function () {
+  var isTouch = 'ontouchstart' in window;
+
   function decodeBase64Utf8(b64) {
     var bin = atob(b64);
     var bytes = new Uint8Array(bin.length);
     for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     return new TextDecoder('utf-8').decode(bytes);
   }
-  function fallbackCopy(text) {
+
+  function execCopy(text) {
     var ta = document.createElement('textarea');
     ta.value = text;
     ta.style.position = 'fixed';
@@ -18,17 +25,58 @@
     document.body.appendChild(ta);
     ta.focus();
     ta.select();
-    try { document.execCommand('copy'); } catch (e) { /* best effort */ }
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { /* best effort */ }
     document.body.removeChild(ta);
-    if (window.term) { window.term.focus(); }
+    /* refocusing the terminal would pop the on-screen keyboard on mobile */
+    if (!isTouch && window.term) { window.term.focus(); }
+    return ok;
   }
+
+  function showToast(text) {
+    var b = document.getElementById('cc-copy-toast');
+    if (!b) {
+      b = document.createElement('button');
+      b.id = 'cc-copy-toast';
+      b.type = 'button';
+      b.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);' +
+        'z-index:10000;padding:8px 14px;border-radius:8px;border:1px solid #585b70;' +
+        'background:#313244;color:#cdd6f4;font:14px Menlo,Consolas,monospace;display:none;';
+      document.body.appendChild(b);
+    }
+    clearTimeout(b._hideTimer);
+    b.textContent = '📋 Tap to copy';
+    b.style.display = 'block';
+    b.onclick = function () {
+      var done = function () {
+        b.textContent = 'Copied ✓';
+        b._hideTimer = setTimeout(function () { b.style.display = 'none'; }, 900);
+      };
+      var fail = function () { b.style.display = 'none'; };
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(done, function () {
+          execCopy(text) ? done() : fail();
+        });
+      } else {
+        execCopy(text) ? done() : fail();
+      }
+    };
+    b._hideTimer = setTimeout(function () { b.style.display = 'none'; }, 8000);
+  }
+
   function copyText(text) {
+    /* on touch devices skip the hidden-textarea fallback: without a gesture it fails
+     * anyway, and focusing the textarea can flash the on-screen keyboard */
+    var fallback = function () {
+      if (isTouch || !execCopy(text)) showToast(text);
+    };
     if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(text).catch(function () { fallbackCopy(text); });
+      navigator.clipboard.writeText(text).catch(fallback);
     } else {
-      fallbackCopy(text);
+      fallback();
     }
   }
+
   var tries = 0;
   var timer = setInterval(function () {
     if (window.term && window.term.parser && window.term.parser.registerOscHandler) {

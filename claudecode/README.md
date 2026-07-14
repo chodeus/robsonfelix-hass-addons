@@ -131,6 +131,22 @@ scrollable — the classic renderer erases terminal scrollback on every repaint.
 > On the shell prompt, `Ctrl+C` cancels the current command rather than copying — use `Cmd/Ctrl+C`
 > only when text is selected.
 
+### Mobile (touch) support
+
+On phones and tablets the terminal page loads a touch shim (xterm.js has no touch support of
+its own):
+
+| Action | How |
+|--------|-----|
+| **Scroll** | One-finger drag (with flick momentum) — works in Claude's conversation and tmux history |
+| **Select & copy** | Long-press, then drag; release to copy. Claude/tmux highlight the selection and copy it on release — if a **"Tap to copy"** toast appears, tap it (iOS requires a tap before anything may touch the clipboard) |
+| **Keys the on-screen keyboard lacks** | Bottom key bar: `esc`, `tab`, `⇧tab`, arrows (hold to repeat), `^c`, `paste` |
+| **Paste** | `paste` on the key bar (Safari will ask for permission the first time) |
+
+The terminal also refits itself when the on-screen keyboard opens (so the prompt stays
+visible) and reconnects automatically when you return to the app after iOS suspended it —
+the tmux session keeps everything intact meanwhile.
+
 ## Configuration Options
 
 | Option | Description | Default |

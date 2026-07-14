@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.2] - 2026-07-08
+
+### Fixed
+- **Keyboard refit now actually fires inside Home Assistant ingress** (2.7.1's refit worked only when ttyd was opened directly): the on-screen keyboard never resizes the ingress iframe and never fires the iframe's own `visualViewport` events — only the top HA page's visual viewport shrinks. The shim now measures through `window.top` (same origin) and clips the iframe's rect to the top page's visible region, so the terminal — and the key bar — shrink above the keyboard and the line being typed stays visible. Focus changes also trigger delayed re-measures to cover missed viewport events during the keyboard animation
+
+## [2.7.1] - 2026-07-08
+
+### Added
+- **Mobile touch shim** (`mobile.html`, injected into ttyd's page like the OSC 52 bridge; touch devices only). xterm.js has no touch support — on a phone the 2.7.0 scrollable terminal wasn't scrollable at all:
+  - **One-finger drag scrolls** (with flick momentum): drags are synthesized into wheel events, which tmux/Claude Code already understand; falls back to viewport scrolling when no app owns the mouse
+  - **Long-press-then-drag selects and copies**: synthesized into a mouse drag so tmux/Claude do their own selection and OSC 52 copy on release — the standard iOS gesture, minus native handles
+  - **Key bar** (`esc` `tab` `⇧tab` arrows `^c` `paste`) for keys iOS keyboards lack — without Esc you couldn't even interrupt Claude; arrows auto-repeat on hold; paste uses the clipboard-permission gesture
+  - **Keyboard-aware refit**: ttyd only refits on window `resize`, which the iOS keyboard doesn't fire — a `visualViewport` listener now shrinks the terminal so the prompt stays above the keyboard
+  - **Foreground auto-reconnect**: iOS kills the websocket when the app is backgrounded, and ttyd's stock page can sit at "Press ⏎ to Reconnect" (no Enter key in sight). Returning to a dead socket now reloads the page; tmux restores the session in full
+
+### Fixed
+- **OSC 52 copy actually lands on the clipboard on iOS**: Safari refuses clipboard writes that don't stem from a user gesture, and the OSC 52 payload arrives over the websocket — copies silently vanished. A "📋 Tap to copy" toast now appears when the direct write fails; the tap supplies the gesture. Desktop behavior unchanged
+- Resize overlay (`80×24` flash) disabled — it fired on every phone-keyboard open/close
+
 ## [2.7.0] - 2026-07-07
 
 ### Changed
@@ -11,6 +30,7 @@ All notable changes to this project will be documented in this file.
   - New tmux config: mouse on (required for wheel scrolling in Claude; use Shift+drag for native browser selection), 50,000-line shell history, OSC 52 clipboard passthrough, hidden status bar. The now-unused `dtach` package is removed from the image
   - `.bashrc` no longer overrides `TERM` inside tmux (tmux's `screen-256color` stays authoritative in panes; unchanged outside tmux)
 - Removed the redundant `uart: true` permission — `full_access: true` already maps all host devices, including serial
+- Removed explicit Supervisor defaults from config.yaml (`startup: application`, `boot: auto`, `init: true`) — required by the add-on linter, no behavior change (`init` still defaults to `true`/tini)
 - **OSC 52 clipboard bridge**: ttyd's page is served with a small script that forwards OSC 52 clipboard writes to the browser, so Claude's in-app copy (drag-select, double-click a URL) and tmux yanks actually land in your clipboard; falls back to the stock page if extraction fails
 - **Dropped armv7/armhf/i386**: Claude Code ships x64/arm64 binaries only (verified against the npm package), so those arches never actually worked on current versions
 - Dockerfile dotfiles (`.bashrc`, `.profile`, `.claude-notify.sh`, new `.tmux.conf`) moved from `RUN` heredocs to a `rootfs/` `COPY` layout (required by the HA builder for pre-built images)
@@ -19,7 +39,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - **SSE4.2 pre-flight check** (x86-64): warns at startup when the CPU masks SSE4.2 — Claude Code's runtime crashes without it — with explicit Proxmox "set CPU type to `host`" guidance
-- **GitHub Actions builder workflow** (lint + amd64/aarch64 image build, `--test` on PRs) publishing to `ghcr.io/chodeus/claudecode-{arch}`. `image:` stays commented in `config.yaml` (local builds continue) until the workflow has published public images — uncomment it then to switch users to fast pre-built installs
+- **Pre-built images**: new GitHub Actions builder workflow (lint + amd64/aarch64 image build, `--test` on PRs) publishes `ghcr.io/chodeus/claudecode-{arch}`, and `config.yaml` now points at them — installs/updates pull a ready image instead of building for minutes on-device (verified publicly pullable before enabling)
 - Hourly update checker's npm queries now run under a 30s timeout, and a failed registry query can no longer abort add-on startup (when auto-update is on) or silently kill the hourly checker — both were latent `set -e` traps
 - README Security section now documents the accepted ttyd trust model (no terminal-level login; protected by HA ingress auth, no published host port; reachable by other add-on containers on the internal network)
 

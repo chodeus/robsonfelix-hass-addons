@@ -1,0 +1,397 @@
+<script>
+/* Mobile touch shim (touch devices only) — injected after ttyd's page body by
+ * start-addon.sh, same mechanism as the OSC 52 clipboard bridge:
+ *   - one-finger drag        -> wheel events / scrollLines (Claude Code + tmux scrolling;
+ *                               xterm.js never translates touch for the running app)
+ *   - long-press, then drag  -> synthetic mouse drag: tmux/Claude do their own selection
+ *                               and copy it via OSC 52 on release (the bridge then puts it
+ *                               on the clipboard — on iOS via its tap-to-copy toast)
+ *   - key bar with Esc / Tab / Shift+Tab / arrows / Ctrl+C / paste (keys iOS keyboards lack)
+ *   - visualViewport refit so the on-screen keyboard doesn't cover the prompt line
+ *                               (ttyd only refits on window resize, which iOS doesn't fire)
+ *   - reload on foreground when the websocket died while iOS had the page suspended
+ *                               (ttyd's stock page waits for an Enter keypress instead)
+ */
+(function () {
+  'use strict';
+  if (!('ontouchstart' in window)) return;
+
+  var BAR_H = 38;
+  var LONGPRESS_MS = 450;
+  var SLOP_PX = 8;
+
+  /* --- websocket liveness tracking, for the foreground-reconnect check --- */
+  var lastSocket = null;
+  try {
+    var NativeWS = window.WebSocket;
+    window.WebSocket = class extends NativeWS {
+      constructor() {
+        super(...arguments);
+        lastSocket = this;
+      }
+    };
+  } catch (e) { /* best effort — ttyd's stock reconnect behavior still applies */ }
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState !== 'visible') return;
+    /* give ttyd's own abnormal-close reconnect a moment before forcing a reload */
+    setTimeout(function () {
+      if (document.visibilityState === 'visible' &&
+          lastSocket && lastSocket.readyState >= 2 /* CLOSING or CLOSED */) {
+        location.reload();
+      }
+    }, 1500);
+  });
+
+  var style = document.createElement('style');
+  style.textContent = [
+    '.xterm, .xterm-screen { touch-action: manipulation; -webkit-touch-callout: none; }',
+    'body.cc-selecting .xterm { box-shadow: inset 0 0 0 2px rgba(250,179,135,.9); }',
+    '#cc-keybar { position: fixed; left: 0; right: 0; height: ' + BAR_H + 'px;',
+    '  display: flex; gap: 6px; align-items: center; padding: 4px 6px; box-sizing: border-box;',
+    '  overflow-x: auto; -webkit-overflow-scrolling: touch; z-index: 9999;',
+    '  background: rgba(24,24,37,.97); }',
+    '#cc-keybar button { flex: 0 0 auto; min-width: 42px; height: 30px; padding: 0 10px;',
+    '  border: 1px solid #585b70; border-radius: 6px; background: #313244; color: #cdd6f4;',
+    '  font: 13px/1 Menlo, Consolas, monospace;',
+    '  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }',
+    '#cc-keybar button:active { background: #45475a; }'
+  ].join('\n');
+  document.head.appendChild(style);
+
+  /* --- key bar --- */
+  function sendKey(spec) {
+    var t = window.term;
+    if (!t || !t.textarea) return;
+    var ev = new KeyboardEvent('keydown', {
+      key: spec.key,
+      bubbles: true,
+      cancelable: true,
+      ctrlKey: !!spec.ctrl,
+      shiftKey: !!spec.shift
+    });
+    /* xterm.js maps keys via ev.keyCode, which the KeyboardEvent constructor leaves at 0;
+     * going through the real keydown path makes xterm honor application-cursor mode etc. */
+    Object.defineProperty(ev, 'keyCode', { value: spec.code });
+    Object.defineProperty(ev, 'which', { value: spec.code });
+    t.textarea.dispatchEvent(ev);
+  }
+
+  var KEYS = [
+    { label: 'esc', key: 'Escape', code: 27 },
+    { label: 'tab', key: 'Tab', code: 9 },
+    { label: '⇧tab', key: 'Tab', code: 9, shift: true },
+    { label: '←', key: 'ArrowLeft', code: 37, repeat: true },
+    { label: '↓', key: 'ArrowDown', code: 40, repeat: true },
+    { label: '↑', key: 'ArrowUp', code: 38, repeat: true },
+    { label: '→', key: 'ArrowRight', code: 39, repeat: true },
+    { label: '^c', key: 'c', code: 67, ctrl: true },
+    { label: 'paste', paste: true }
+  ];
+
+  function promptPaste() {
+    var txt = window.prompt('Paste here, then tap OK:');
+    if (txt && window.term) window.term.paste(txt);
+  }
+
+  function doPaste() {
+    var t = window.term;
+    if (!t) return;
+    if (navigator.clipboard && navigator.clipboard.readText && window.isSecureContext) {
+      navigator.clipboard.readText().then(function (txt) {
+        if (txt) t.paste(txt);
+      }).catch(promptPaste);
+    } else {
+      promptPaste();
+    }
+  }
+
+  function makeBar() {
+    var bar = document.createElement('div');
+    bar.id = 'cc-keybar';
+    KEYS.forEach(function (spec) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = spec.label;
+      if (spec.paste) {
+        /* paste needs a real click: the clipboard permission requires the gesture */
+        b.addEventListener('mousedown', function (e) { e.preventDefault(); });
+        b.addEventListener('click', doPaste);
+      } else {
+        /* send on release so a drag can still scroll the (possibly overflowing) bar;
+         * holding an arrow starts auto-repeat */
+        var timer = null, interval = null, repeating = false, moved = false, sx = 0, sy = 0;
+        var stop = function () {
+          clearTimeout(timer);
+          clearInterval(interval);
+          timer = interval = null;
+        };
+        b.addEventListener('touchstart', function (e) {
+          var t = e.touches[0];
+          sx = t.clientX;
+          sy = t.clientY;
+          moved = false;
+          repeating = false;
+          if (spec.repeat) {
+            timer = setTimeout(function () {
+              repeating = true;
+              sendKey(spec);
+              interval = setInterval(function () { sendKey(spec); }, 90);
+            }, 350);
+          }
+        }, { passive: true });
+        b.addEventListener('touchmove', function (e) {
+          var t = e.touches[0];
+          if (Math.abs(t.clientX - sx) > 10 || Math.abs(t.clientY - sy) > 10) {
+            moved = true;
+            stop();
+          }
+        }, { passive: true });
+        b.addEventListener('touchend', function (e) {
+          stop();
+          if (!moved) {
+            e.preventDefault(); /* no ghost click, no focus steal from the terminal */
+            if (!repeating) sendKey(spec);
+          }
+        }, { passive: false });
+        b.addEventListener('touchcancel', function () {
+          stop();
+          moved = true;
+        });
+      }
+      bar.appendChild(b);
+    });
+    document.body.appendChild(bar);
+    return bar;
+  }
+
+  /* --- keyboard-aware layout --- */
+  /* Inside the HA ingress iframe the on-screen keyboard never resizes the iframe and
+   * never fires the iframe's own visualViewport events — only the TOP page's visual
+   * viewport shrinks. The ingress iframe is same-origin with the HA frontend, so
+   * measure through window.top and clip our iframe's rect to the visible region. */
+  var topVV = null;
+  try {
+    if (window.top !== window && window.frameElement) topVV = window.top.visualViewport;
+  } catch (e) { /* cross-origin parent — fall back to our own viewport */ }
+
+  function visibleHeight() {
+    try {
+      if (topVV) {
+        var rect = window.frameElement.getBoundingClientRect();
+        return Math.max(0, Math.round(
+          Math.min(rect.height, topVV.offsetTop + topVV.height - rect.top)));
+      }
+    } catch (e) { /* fall through */ }
+    var vv = window.visualViewport;
+    return Math.round(vv ? vv.height : window.innerHeight);
+  }
+
+  var bar = null;
+  var layoutQueued = false;
+  function layout() {
+    layoutQueued = false;
+    var vv = window.visualViewport;
+    var top = (!topVV && vv) ? vv.offsetTop : 0;
+    var h = visibleHeight();
+    if (h < 80) return; /* mid-animation glitch or occluded iframe — keep the last layout */
+    document.documentElement.style.height = h + 'px';
+    document.body.style.height = h + 'px';
+    if (bar) bar.style.top = (top + h - BAR_H) + 'px';
+    var xt = document.querySelector('.xterm');
+    var container = xt && xt.parentElement;
+    if (container && container !== document.body) {
+      container.style.height = (h - BAR_H) + 'px';
+    }
+    window.scrollTo(0, 0);
+    /* ttyd refits (fitAddon.fit) on window resize only — trigger it explicitly */
+    window.dispatchEvent(new Event('resize'));
+  }
+  function queueLayout() {
+    if (!layoutQueued) {
+      layoutQueued = true;
+      requestAnimationFrame(layout);
+    }
+  }
+
+  /* --- touch gestures: drag to scroll, long-press-drag to select --- */
+  function cellHeight() {
+    try {
+      var d = window.term._core._renderService.dimensions;
+      return (d.css && d.css.cell && d.css.cell.height) || d.actualCellHeight || 20;
+    } catch (e) { return 20; }
+  }
+
+  function mouseReportsActive() {
+    try { return !!window.term._core.coreMouseService.areMouseEventsActive; }
+    catch (e) { return true; } /* tmux runs with mouse on — assume reports if unsure */
+  }
+
+  function screenEl() { return document.querySelector('.xterm-screen'); }
+
+  function fireWheelLines(lines, x, y) {
+    /* one wheel event per line: xterm emits a single mouse-wheel report per event */
+    var el = screenEl();
+    if (!el) return;
+    var dir = lines > 0 ? 1 : -1;
+    var n = Math.min(Math.abs(lines), 10);
+    var ch = cellHeight();
+    for (var i = 0; i < n; i++) {
+      el.dispatchEvent(new WheelEvent('wheel', {
+        deltaY: dir * ch, deltaMode: 0,
+        clientX: x, clientY: y,
+        bubbles: true, cancelable: true
+      }));
+    }
+  }
+
+  function scrollBy(lines, x, y) {
+    if (!lines) return;
+    if (mouseReportsActive()) fireWheelLines(lines, x, y);
+    else if (window.term) window.term.scrollLines(lines);
+  }
+
+  function fireMouse(type, x, y, buttons) {
+    var el = screenEl();
+    if (!el) return;
+    el.dispatchEvent(new MouseEvent(type, {
+      bubbles: true, cancelable: true,
+      clientX: x, clientY: y,
+      button: 0, buttons: buttons, detail: 1
+    }));
+  }
+
+  var momentumRAF = null;
+  function cancelMomentum() {
+    if (momentumRAF) {
+      cancelAnimationFrame(momentumRAF);
+      momentumRAF = null;
+    }
+  }
+
+  function startMomentum(vy, x, y) {
+    if (Math.abs(vy) < 2) return;
+    var residual = 0;
+    var step = function () {
+      vy *= 0.94;
+      if (Math.abs(vy) < 0.5) { momentumRAF = null; return; }
+      var ch = cellHeight();
+      var dy = vy + residual;
+      var lines = (dy > 0 ? Math.floor : Math.ceil)(dy / ch);
+      residual = dy - lines * ch;
+      if (lines) scrollBy(lines, x, y);
+      momentumRAF = requestAnimationFrame(step);
+    };
+    momentumRAF = requestAnimationFrame(step);
+  }
+
+  function attachGestures(root) {
+    var st = null;
+
+    function endSelect() {
+      fireMouse('mouseup', st.lastX, st.lastY, 0);
+      document.body.classList.remove('cc-selecting');
+    }
+
+    function abort() {
+      if (!st) return;
+      clearTimeout(st.lp);
+      if (st.mode === 'select') endSelect();
+      st = null;
+    }
+
+    root.addEventListener('touchstart', function (e) {
+      cancelMomentum();
+      if (e.touches.length !== 1) { abort(); return; }
+      var t = e.touches[0];
+      st = {
+        mode: 'pending',
+        x: t.clientX, y: t.clientY,
+        lastX: t.clientX, lastY: t.clientY,
+        residual: 0, vy: 0, lastT: e.timeStamp,
+        lp: setTimeout(function () {
+          if (!st || st.mode !== 'pending') return;
+          st.mode = 'select';
+          document.body.classList.add('cc-selecting');
+          fireMouse('mousedown', st.lastX, st.lastY, 1);
+        }, LONGPRESS_MS)
+      };
+    }, { passive: true });
+
+    root.addEventListener('touchmove', function (e) {
+      if (!st) return;
+      if (e.touches.length !== 1) { abort(); return; }
+      var t = e.touches[0];
+      if (st.mode === 'pending' &&
+          (Math.abs(t.clientX - st.x) > SLOP_PX || Math.abs(t.clientY - st.y) > SLOP_PX)) {
+        clearTimeout(st.lp);
+        st.mode = 'scroll';
+      }
+      if (st.mode === 'scroll') {
+        e.preventDefault();
+        var ch = cellHeight();
+        var dy = st.lastY - t.clientY + st.residual;
+        var lines = (dy > 0 ? Math.floor : Math.ceil)(dy / ch);
+        st.residual = dy - lines * ch;
+        var dt = e.timeStamp - st.lastT || 16;
+        /* smoothed flick velocity in px per frame (16ms) for the momentum tail */
+        st.vy = 0.8 * st.vy + 0.2 * ((st.lastY - t.clientY) / dt) * 16;
+        st.lastT = e.timeStamp;
+        scrollBy(lines, t.clientX, t.clientY);
+      } else if (st.mode === 'select') {
+        e.preventDefault();
+        fireMouse('mousemove', t.clientX, t.clientY, 1);
+      }
+      st.lastX = t.clientX;
+      st.lastY = t.clientY;
+    }, { passive: false });
+
+    root.addEventListener('touchend', function (e) {
+      if (!st) return;
+      clearTimeout(st.lp);
+      if (st.mode === 'select') {
+        e.preventDefault();
+        endSelect();
+      } else if (st.mode === 'scroll') {
+        e.preventDefault();
+        startMomentum(st.vy, st.lastX, st.lastY);
+      }
+      /* mode 'pending' = plain tap: let the default click/focus happen */
+      st = null;
+    }, { passive: false });
+
+    root.addEventListener('touchcancel', abort);
+  }
+
+  /* --- init once ttyd has created the terminal --- */
+  var tries = 0;
+  var initTimer = setInterval(function () {
+    var xt = document.querySelector('.xterm');
+    if (window.term && xt) {
+      clearInterval(initTimer);
+      bar = makeBar();
+      attachGestures(xt);
+      var vv = window.visualViewport;
+      if (vv) {
+        vv.addEventListener('resize', queueLayout);
+        vv.addEventListener('scroll', queueLayout);
+      }
+      if (topVV) {
+        topVV.addEventListener('resize', queueLayout);
+        topVV.addEventListener('scroll', queueLayout);
+      }
+      window.addEventListener('orientationchange', queueLayout);
+      /* the keyboard animates in over ~250ms — re-measure around focus changes even
+       * when no viewport event reaches this frame */
+      ['focusin', 'focusout'].forEach(function (type) {
+        document.addEventListener(type, function () {
+          [50, 300, 600].forEach(function (ms) { setTimeout(queueLayout, ms); });
+        });
+      });
+      layout();
+    } else if (++tries > 150) {
+      clearInterval(initTimer);
+    }
+  }, 100);
+})();
+</script>
