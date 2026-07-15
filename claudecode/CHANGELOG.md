@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.8.0] - 2026-07-15
+
+### Fixed
+- **Disabling `session_persistence` or `enable_mcp` is finally honored.** Both were read with `jq -r '.x // true'`, and jq's `//` falls back on `false` as well as `null` — so an explicit `false` from the add-on config resolved back to `true`. tmux always started and ha-mcp was always registered (and its read-only tools pre-authorized) regardless of the toggle. Now read with an explicit `if .x == null then true else .x end`; the false-defaulted options were future-proofed to the same form
+- **A hung or broken Claude Code binary no longer blocks the terminal from starting.** Every `claude` call before `exec ttyd` is now wrapped in `timeout`, and MCP setup is gated on a `CLAUDE_OK` smoke test — if the CLI doesn't respond in 30s (e.g. a persisted update that's incompatible with this CPU, which *hangs* rather than crashes) the add-on skips MCP setup and still starts the web terminal so you can debug from inside
+- **Auto-update now smoke-tests each release and rolls back a bad one.** Both the startup check and the hourly checker verify the newly-installed `claude` actually runs; on failure they roll back to the previous version (or remove the persisted install so PATH falls back to the build-verified image binary). A known-bad version is remembered so the hourly loop won't reinstall it every hour, and a broken persisted install is now treated as "repair me", not "up to date". `npm` calls are `timeout`-bounded so a registry stall can't wedge startup
+- **settings.json is written atomically and can no longer crash-loop the add-on.** The permission/Remote-Control edits write to a temp file in the same directory and rename (no more cross-`/tmp` copy that a SIGKILL could truncate), the empty-file case is reset (`[ -s ]` not `[ -f ]`), and an unparseable settings.json degrades to a warning instead of aborting startup under `set -e`
+- **The CLAUDE.md `/memory` file can no longer be wiped** by a transient read error during the import-line prepend (the read is now checked before the file is rewritten, atomically)
+- **The hourly update checker survives transient errors** — it runs under `set +e`, so a one-off filesystem/network hiccup no longer silently kills update checks for the container's lifetime
+- **CPU pre-flight message corrected**: the current failure mode on an SSE4.2-less CPU (e.g. Proxmox `kvm64`) is a silent 100%-CPU hang, not only a SIGILL crash, and the fix needs a **full VM stop/start** (a guest reboot doesn't repropagate CPU flags). Added an informational note when AVX2 is absent (current Linux builds are Bun *baseline* / SSE4.2-only and run fine, but Anthropic has shipped AVX-requiring builds before). README Requirements + a new Troubleshooting entry updated to match
+- **`ha-logs` no longer cats a multi-hundred-MB log** into your session (it tails the last 200 lines) — a large `home-assistant.log` could otherwise consume an entire Claude context window
+- **Docker socket access actually works**: added `/run/docker.sock` to the AppArmor profile, so the `docker_api: true` grant + bundled `docker-cli` are usable instead of blocked
+- **AppArmor `/usr/local` widened to `ixmr`** so native Python extensions there (ha-mcp's pydantic-core, cryptography) can `mmap(PROT_EXEC)` — robustness parity with `/usr/lib`
+- **tmux session pre-created (detached) at startup** so two simultaneous first connections (e.g. phone + desktop) both attach instead of racing `new-session -A`, which left the loser with a "duplicate session" dead pane
+
+### Added
+- **Remote Control** (`enable_remote_control`, default off; `remote_control_session_prefix`, default `HomeAssistant`): auto-starts Claude Code's Remote Control bridge so you can view and steer the add-on's session from [claude.ai/code](https://claude.ai/code) or the Claude mobile app. Requires a claude.ai Pro/Max/Team/Enterprise login (API keys unsupported). Off by default with a security note — the add-on runs as root with full host access. Turning it off removes the persisted setting. Ported from upstream `robsonfelix/robsonfelix-hass-addons` (PR #34)
+- **Persistent tmux user overrides**: `~/.tmux.conf` now sources `/homeassistant/.claudecode/tmux.conf` last, so your tmux customizations survive add-on rebuilds — e.g. `echo 'set -g mouse off' > /homeassistant/.claudecode/tmux.conf` to restore native browser copy/paste (at the cost of wheel-scrolling Claude's fullscreen buffer)
+- **French translation** (`translations/fr.yaml`)
+- **`restrict_terminal_port`** (experimental, default off): firewalls the web terminal port (7681) to HA ingress + loopback via iptables, so other add-on containers on the internal hassio network can't reach the root shell (which carries this add-on's Supervisor token). Resolves the ingress source from the `supervisor` hostname (not a hard-coded IP) and **fails open** — never blocks ingress if iptables is unavailable. Off by default because it touches the container firewall; verify the terminal still loads after enabling. Requires the new `iptables` package and AppArmor `/sbin` + `/run/xtables.lock` rules
+- **Troubleshooting: recovering from a `bypassPermissions` root lockout** — because settings persist across reinstalls, a saved bypass-permissions mode locks Claude Code out on every launch; the README now documents how to clear it
+
+### Changed
+- **Build-time smoke test**: the image build now runs `claude --version` after install and fails the build if it doesn't work, so a broken npm publish can't ship to GHCR (records the verified version in `/etc/claude-code-version`). GH runners have AVX, so this catches non-CPU breakage; CPU-incompatible releases are still handled at runtime
+- **Download resilience**: the `ttyd` and Home Assistant CLI downloads use `curl --retry 5 --retry-delay 2 --retry-all-errors`, so a transient network/DNS blip no longer fails the whole build
+- **Healthcheck `start-period` raised to 300s**: on a slow host with `auto_update_claude` on, the pre-ttyd path (npm install + smoke test + MCP setup) can take minutes; the old 10s grace let the Supervisor watchdog kill startup mid-`npm install` and leave a half-written binary
+- The manual `claude update` / `claude-update` path now smoke-tests the result and prints a rollback command if the new version doesn't run (and `claude-update` reuses the `claude update` wrapper instead of duplicating it)
+
 ## [2.7.2] - 2026-07-08
 
 ### Fixed

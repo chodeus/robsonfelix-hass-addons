@@ -44,6 +44,7 @@ RUN apk add --no-cache \
     file \
     fd \
     yq-go \
+    iptables \
     && update-ca-certificates
 
 # Install ttyd static binary (avoids libwebsockets issues)
@@ -53,7 +54,8 @@ RUN case "${BUILD_ARCH}" in \
         aarch64) TTYD_ARCH="aarch64" ;; \
         *) TTYD_ARCH="x86_64" ;; \
     esac && \
-    curl -fsSL "https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.${TTYD_ARCH}" -o /usr/bin/ttyd && \
+    curl -fsSL --retry 5 --retry-delay 2 --retry-all-errors \
+        "https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.${TTYD_ARCH}" -o /usr/bin/ttyd && \
     chmod +x /usr/bin/ttyd
 
 # Provide a passthrough sudo so Claude Code's postinstall script doesn't fail
@@ -63,9 +65,15 @@ RUN printf '#!/bin/sh\nexec "$@"\n' > /usr/local/bin/sudo && chmod +x /usr/local
 # Install Claude Code via npm
 # BUILD_VERSION is passed automatically by HA and busts the Docker cache on every version bump
 ARG BUILD_VERSION=dev
+# Smoke-test the install so a broken npm publish (bad entrypoint, missing platform binary)
+# fails the build instead of shipping to GHCR. GH runners have AVX, so this cannot catch
+# CPU-incompatible releases (that is handled at runtime) — it catches non-CPU breakage.
+# The verified version is recorded for reference/rollback.
 RUN echo "Building add-on ${BUILD_VERSION} - installing latest Claude Code..." && \
     npm install -g @anthropic-ai/claude-code@latest --no-fund --no-audit 2>&1 && \
-    echo "[INFO] Installed $(claude --version 2>/dev/null)"
+    CLAUDE_VER="$(timeout 60 claude --version </dev/null)" && \
+    echo "[INFO] Installed $CLAUDE_VER" && \
+    echo "$CLAUDE_VER" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 > /etc/claude-code-version
 
 # Install ha-mcp (Home Assistant MCP server, ~92 tools) plus pymodbus/pyserial/YAML tooling.
 # ha-mcp pulls pydantic-core and cryptography, which ship musl wheels for amd64/aarch64 but
@@ -100,7 +108,8 @@ RUN case "${BUILD_ARCH}" in \
         aarch64) HA_ARCH="aarch64" ;; \
         *) HA_ARCH="amd64" ;; \
     esac && \
-    curl -fsSL "https://github.com/home-assistant/cli/releases/latest/download/ha_${HA_ARCH}" -o /usr/local/bin/ha && \
+    curl -fsSL --retry 5 --retry-delay 2 --retry-all-errors \
+        "https://github.com/home-assistant/cli/releases/latest/download/ha_${HA_ARCH}" -o /usr/local/bin/ha && \
     chmod +x /usr/local/bin/ha
 
 # Create necessary directories (NOT /root/.claude - will be symlinked at runtime)
@@ -124,8 +133,11 @@ ENV PATH="/root/.local/bin:${PATH}"
 # Set working directory
 WORKDIR /homeassistant
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+# Health check. start-period is generous: on a slow host with auto_update_claude on, the
+# pre-ttyd path (npm show/install, claude smoke test, MCP setup, page extraction) can take
+# minutes — a shorter grace window lets the Supervisor watchdog kill startup mid-npm-install
+# and leave a half-written binary shadowing the good one.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=300s --retries=3 \
     CMD curl -sf http://localhost:7681/ || exit 1
 
 ENTRYPOINT []

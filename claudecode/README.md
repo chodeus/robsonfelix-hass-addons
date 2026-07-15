@@ -15,9 +15,13 @@ claude "Why isn't my motion sensor automation working?"
 
 - Home Assistant OS or Supervised installation
 - [Anthropic account](https://console.anthropic.com/) (authentication handled in terminal)
-- On x86-64: a CPU with **SSE4.2** (any hardware from ~2009+). Virtual machines matter here:
-  Proxmox/QEMU's default `kvm64` CPU type masks SSE4.2 and Claude Code crashes on launch —
-  set the VM CPU type to `host` instead. The add-on warns in its log if SSE4.2 is missing.
+- On x86-64: a CPU with **SSE4.2** (any hardware from ~2009+). Claude Code's bundled runtime
+  (Bun) is a "baseline" build needing SSE4.2 — not AVX. Virtual machines matter here:
+  Proxmox/QEMU's default `kvm64` CPU type masks SSE4.2, and Claude Code then crashes (SIGILL)
+  or hangs silently at 100% CPU. Set the VM CPU type to `host` (or `x86-64-v2`+) and then
+  **fully stop and start the VM** — an in-guest reboot does not repropagate CPU flags. The
+  add-on warns in its log if SSE4.2 is missing. See [Troubleshooting](#add-on-wont-start-or-the-log-stops-early)
+  if the add-on won't start.
 
 ## Features
 
@@ -159,6 +163,9 @@ the tmux session keeps everything intact meanwhile.
 | `auto_update_claude` | Auto-update Claude Code (startup + hourly). When off, you get an update notification instead | false |
 | `model` | Model to use (dropdown; `default` = account default) | default |
 | `model_custom` | Model id used only when `model` is `custom` | "" (empty) |
+| `enable_remote_control` | Auto-start Claude Code's Remote Control bridge (view/steer from claude.ai or the mobile app) | false |
+| `remote_control_session_prefix` | Prefix for auto-generated Remote Control session names | HomeAssistant |
+| `restrict_terminal_port` | *(experimental)* Firewall the terminal port to HA ingress only — see [Container Security](#container-security) | false |
 
 ### Model Selection
 
@@ -200,6 +207,19 @@ The dropdown keeps the common choices typo-proof. For a model that isn't listed 
 release), choose **`custom`** and enter its id in `model_custom` — no add-on update needed. If
 `custom` is selected but `model_custom` is empty, the add-on leaves the model unpinned (same as
 `default`).
+
+### Remote Control
+
+Set `enable_remote_control: true` to have Claude Code auto-start its **Remote Control** bridge
+each session, so you can view and steer the add-on's session from [claude.ai/code](https://claude.ai/code)
+or the Claude mobile app. `remote_control_session_prefix` sets the prefix of the auto-generated
+session name shown there (default `HomeAssistant` → e.g. `HomeAssistant-graceful-unicorn`).
+
+- Requires the add-on's Claude Code to be signed into a **claude.ai Pro, Max, Team, or
+  Enterprise** account — API-key auth does not support Remote Control.
+- **⚠️ Security:** this add-on runs as root with full access to your Home Assistant host, so
+  anyone who can sign in to the linked Claude account can drive it. Leave this **off** unless you
+  need it, and see [Container Security](#container-security).
 
 ## Update Notifications
 
@@ -289,6 +309,12 @@ Claude's output) to every ingress reconnect is exactly the problem this release 
   Home Assistant's ingress authentication, and no host port is published. Like other HA
   terminal add-ons, this means another *add-on container* on the internal hassio network
   could reach the terminal port directly. Only install add-ons you trust.
+- **Optional mitigation (`restrict_terminal_port`, experimental, default off):** enable it to
+  firewall port 7681 to Home Assistant's ingress (plus loopback for the healthcheck) using
+  iptables inside the container, so other add-on containers can't reach the shell. It resolves
+  the ingress source from the `supervisor` hostname and **fails open** (never blocks ingress) if
+  iptables isn't available — but because it touches the container's firewall, **verify the
+  terminal still loads after enabling it** before relying on it.
 
 ## Troubleshooting
 
@@ -325,6 +351,35 @@ Claude Code manages its own authentication. If you have issues:
 After changing configuration:
 1. Save the configuration
 2. Restart the add-on completely
+
+### Add-on won't start, or the log stops early
+
+If the add-on shows as running but the terminal never loads, or the log stops shortly after
+startup, the most common cause is a **CPU without SSE4.2** — Claude Code's bundled Bun runtime
+either crashes (SIGILL) or hangs silently at 100% CPU. This almost always happens in a VM whose
+CPU type masks SSE4.2:
+
+- **Proxmox / QEMU:** set the VM's CPU type to `host` (or `x86-64-v2`+), then **fully stop and
+  start the VM from Proxmox** — a reboot from inside the guest does not repropagate the new CPU
+  flags. Verify inside the add-on terminal with `grep -m1 -o sse4_2 /proc/cpuinfo`.
+- **libvirt:** use `<cpu mode="host-passthrough"/>` (or `host-model`), then stop/start the domain.
+- **ESXi / other:** enable CPU/host passthrough for the VM.
+
+The add-on now keeps the terminal reachable even when Claude Code itself can't run, so you can
+open it and check `grep -m1 -o sse4_2 /proc/cpuinfo` from inside.
+
+### Claude Code exits immediately with a "root/sudo" error
+
+If `claude` quits at launch complaining that `--dangerously-skip-permissions` cannot be used with
+root privileges, a `bypassPermissions` mode got saved into your settings (this add-on runs as
+root). Because settings persist across restarts and reinstalls, removing/reinstalling the add-on
+won't clear it. Fix it from the terminal:
+
+```bash
+grep -l bypassPermissions /homeassistant/.claudecode/settings.json /homeassistant/.claudecode/.claude.json 2>/dev/null
+# then edit that file and remove the "defaultMode": "bypassPermissions" entry, e.g.:
+jq 'del(.permissions.defaultMode)' /homeassistant/.claudecode/settings.json > /tmp/s && mv /tmp/s /homeassistant/.claudecode/settings.json
+```
 
 ## Support
 

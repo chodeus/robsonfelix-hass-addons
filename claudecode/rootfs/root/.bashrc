@@ -20,7 +20,13 @@ claude() {
             --prefix /homeassistant/.claudecode/npm-global \
             --no-fund --no-audit 2>&1
         hash -r 2>/dev/null
-        echo "Done: $(command claude --version 2>/dev/null)"
+        if _v=$(timeout 30 command claude --version </dev/null 2>/dev/null) && [ -n "$_v" ]; then
+            echo "Done: $_v"
+        else
+            echo "[ERROR] The updated Claude Code does not run on this host (it may need a CPU with SSE4.2)."
+            echo "[ERROR] Roll back to the built-in version with:"
+            echo "        npm uninstall -g @anthropic-ai/claude-code --prefix /homeassistant/.claudecode/npm-global; hash -r"
+        fi
         return 0
     fi
     command claude "$@"
@@ -31,7 +37,10 @@ alias ll='ls -la'
 alias c='claude'
 alias cc='claude --continue'
 alias ha-config='cd /homeassistant'
-alias ha-logs='cat /homeassistant/home-assistant.log 2>/dev/null || echo "Log not found"'
-alias claude-update='echo "Updating Claude Code..." && npm install -g @anthropic-ai/claude-code@latest --prefix /homeassistant/.claudecode/npm-global --no-fund --no-audit 2>&1; hash -r 2>/dev/null; echo "Done: $(command claude --version 2>/dev/null)"'
+# tail, not cat: home-assistant.log can be tens/hundreds of MB and a full read into a Claude
+# session can burn an entire context window. Use `ha core logs` or a bigger tail for more.
+alias ha-logs='tail -n 200 /homeassistant/home-assistant.log 2>/dev/null || echo "Log not found"'
+# Reuses the claude() wrapper above (npm --prefix install + smoke test + recovery hint)
+alias claude-update='claude update'
 
 source /root/.claude-notify.sh

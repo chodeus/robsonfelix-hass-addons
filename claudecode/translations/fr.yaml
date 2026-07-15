@@ -1,0 +1,90 @@
+configuration:
+  enable_mcp:
+    name: Activer le MCP Home Assistant
+    description: >-
+      Active le serveur MCP Home Assistant pour interagir directement avec les entités
+      et les services depuis Claude Code. Permet à Claude d'interroger les états, d'appeler
+      des services et d'interagir avec votre maison connectée.
+  enable_playwright_mcp:
+    name: Activer le MCP Playwright
+    description: >-
+      Active le serveur MCP Playwright pour l'automatisation du navigateur. Nécessite
+      l'installation et le démarrage de l'add-on « Playwright Browser ». Permet à Claude de
+      naviguer sur des pages web, remplir des formulaires, cliquer et prendre des captures.
+  playwright_cdp_host:
+    name: Hôte CDP Playwright
+    description: >-
+      Nom d'hôte de l'add-on Playwright Browser pour la connexion CDP. Laissez vide pour
+      la valeur par défaut (playwright-browser). Si la connexion échoue, vérifiez le nom
+      d'hôte du conteneur Playwright Browser (par ex. 1016f397-playwright-browser).
+  terminal_font_size:
+    name: Taille de police du terminal
+    description: >-
+      Taille de la police du terminal web en pixels (10-24).
+      Ajustez-la pour une meilleure lisibilité sur votre écran.
+  terminal_theme:
+    name: Thème du terminal
+    description: >-
+      Thème de couleur du terminal web.
+      Choisissez « dark » pour un fond sombre ou « light » pour un fond clair.
+  working_directory:
+    name: Répertoire de travail
+    description: >-
+      Répertoire de travail par défaut au démarrage de Claude Code.
+      Utilisez /homeassistant pour un accès direct aux fichiers de configuration de HA.
+  session_persistence:
+    name: Persistance de session
+    description: >-
+      Garde votre session de terminal active entre les reconnexions (via tmux). Une fois
+      activée, votre session et son historique visible survivent aux rafraîchissements du
+      navigateur, aux fermetures d'onglet et aux coupures. Recommandé pour les tâches longues.
+  auto_update_claude:
+    name: Mise à jour automatique de Claude Code
+    description: >-
+      Vérifie et installe automatiquement les mises à jour de Claude Code — au démarrage et
+      toutes les heures pendant l'exécution. Maintient Claude Code à jour sans changer la
+      version de l'add-on.
+  model:
+    name: Modèle Claude
+    description: >-
+      Choisissez un modèle. « default » utilise le modèle par défaut de votre compte Claude
+      (changez avec /model dans une session). « claude-fable-5 » est le plus performant
+      (nouveau niveau au-dessus d'Opus) ; les variantes « [1m] » utilisent le même modèle avec
+      une fenêtre de contexte de 1M de tokens (disponibilité et tarif selon votre offre).
+      Choisissez « custom » pour utiliser tout identifiant saisi dans Modèle (personnalisé)
+      ci-dessous — pratique pour les nouveaux modèles absents de cette liste, sans mise à jour
+      de l'add-on.
+  model_custom:
+    name: Modèle (personnalisé)
+    description: >-
+      Utilisé uniquement lorsque Modèle est réglé sur « custom ». Saisissez l'identifiant
+      exact du modèle, par ex. claude-fable-5. Si laissé vide, le modèle par défaut du compte
+      est utilisé.
+  enable_remote_control:
+    name: Activer le Contrôle à distance
+    description: >-
+      Démarre automatiquement Claude Code avec le Contrôle à distance activé pour chaque
+      session. Permet de visualiser et de piloter votre session locale de Claude Code depuis
+      claude.ai/code ou l'application mobile Claude. Nécessite un abonnement claude.ai Pro,
+      Max, Team ou Enterprise (les clés d'API ne sont pas prises en charge). Note de sécurité :
+      cet add-on s'exécute en root avec un accès complet à votre hôte Home Assistant, donc
+      quiconque peut se connecter au compte Claude lié peut le contrôler. Laissez désactivé
+      sauf si vous en avez besoin.
+  remote_control_session_prefix:
+    name: Préfixe du nom de session de Contrôle à distance
+    description: >-
+      Préfixe des noms de session de Contrôle à distance générés automatiquement, visibles
+      dans claude.ai/code et l'application mobile Claude. Par défaut « HomeAssistant »,
+      produisant des noms comme « HomeAssistant-graceful-unicorn ». Ne s'applique que lorsque
+      le Contrôle à distance est activé.
+  restrict_terminal_port:
+    name: Restreindre le port du terminal (expérimental)
+    description: >-
+      Protège par pare-feu le port du terminal web (7681) pour n'autoriser que l'ingress de
+      Home Assistant, afin que les autres conteneurs d'add-ons du réseau interne ne puissent
+      pas atteindre le shell root. Désactivé par défaut et marqué expérimental — utilise
+      iptables dans le conteneur. Échoue en mode ouvert (ne bloque jamais l'ingress) si
+      iptables est indisponible, mais vérifiez que le terminal se charge toujours après activation.
+
+network:
+  7681/tcp: Terminal Web (ttyd)

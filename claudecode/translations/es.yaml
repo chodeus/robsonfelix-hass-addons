@@ -58,6 +58,31 @@ configuration:
     description: >-
       Se usa solo cuando Modelo está en "custom". Indica el id exacto del modelo,
       ej.: claude-fable-5. Si se deja vacío, se usa el predeterminado de la cuenta.
+  enable_remote_control:
+    name: Habilitar Control Remoto
+    description: >-
+      Inicia automáticamente Claude Code con Control Remoto habilitado en cada sesión.
+      Permite ver y controlar tu sesión local de Claude Code desde claude.ai/code
+      o la aplicación móvil de Claude. Requiere suscripción claude.ai Pro, Max, Team o
+      Enterprise (las claves de API no son compatibles). Nota de seguridad: este add-on
+      se ejecuta como root con acceso completo a tu servidor de Home Assistant, por lo
+      que cualquiera que pueda iniciar sesión en la cuenta de Claude vinculada podrá
+      controlarlo. Déjalo desactivado salvo que lo necesites.
+  remote_control_session_prefix:
+    name: Prefijo del Nombre de Sesión de Control Remoto
+    description: >-
+      Prefijo para los nombres de sesión de Control Remoto generados automáticamente,
+      visible en claude.ai/code y la aplicación móvil de Claude. El valor predeterminado
+      es "HomeAssistant", generando nombres como "HomeAssistant-graceful-unicorn". Solo
+      aplica cuando el Control Remoto está habilitado.
+  restrict_terminal_port:
+    name: Restringir Puerto del Terminal (experimental)
+    description: >-
+      Protege con firewall el puerto del terminal web (7681) para permitir solo el ingress de
+      Home Assistant, de modo que otros contenedores de add-ons en la red interna no puedan
+      acceder a la shell de root. Desactivado por defecto y marcado como experimental — usa
+      iptables dentro del contenedor. Falla de forma abierta (nunca bloquea el ingress) si
+      iptables no está disponible, pero verifica que el terminal aún cargue tras activarlo.
 
 network:
   7681/tcp: Terminal Web (ttyd)

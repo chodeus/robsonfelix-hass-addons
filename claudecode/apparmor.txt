@@ -36,8 +36,19 @@ profile claudecode flags=(attach_disconnected,mediate_deleted) {
   /bin/** ixr,
   /usr/bin/** ixr,
   /usr/lib/** ixmr,
-  /usr/local/** ixr,
+  # ixmr (not ixr): the base image builds CPython + native .so extensions (ha-mcp's
+  # pydantic-core, cryptography) under /usr/local, which need mmap(PROT_EXEC) to load.
+  /usr/local/** ixmr,
   /usr/libexec/** ixr,
+
+  # iptables lives in /sbin on Alpine; needed for the opt-in restrict_terminal_port firewall.
+  /sbin/** ixmr,
+
+  # Docker socket — config.yaml sets docker_api: true and the image ships docker-cli;
+  # without this rule every `docker` command fails to connect (Alpine's /var/run -> /run).
+  /run/docker.sock rw,
+  # iptables (nft or legacy backend) takes this lock; without it `iptables -A` fails.
+  /run/xtables.lock rwk,
 
   # Add-on data (private, non-backed-up volume)
   /data/ r,
