@@ -228,7 +228,7 @@ if [ "$AUTO_UPDATE" = "true" ]; then
         # Install into the writable persisted prefix — avoids the read-only Docker layer
         # restriction that blocks `claude update` (which targets the npm global in /usr/local).
         timeout 300 npm install -g "@anthropic-ai/claude-code@$LATEST_VER" \
-            --prefix "$NPM_GLOBAL_DIR" --no-fund --no-audit 2>&1 || true
+            --prefix "$NPM_GLOBAL_DIR" --foreground-scripts --no-fund --no-audit 2>&1 || true
         hash -r 2>/dev/null || true
         if timeout 30 claude --version </dev/null >/dev/null 2>&1; then
             rm -f "$PERSIST_DIR/.claude_bad_version" 2>/dev/null || true
@@ -237,7 +237,7 @@ if [ "$AUTO_UPDATE" = "true" ]; then
             echo "[ERROR] Claude Code $LATEST_VER does not run here — rolling back to $CURRENT_VER"
             echo "$LATEST_VER" > "$PERSIST_DIR/.claude_bad_version" 2>/dev/null || true
             timeout 300 npm install -g "@anthropic-ai/claude-code@$CURRENT_VER" \
-                --prefix "$NPM_GLOBAL_DIR" --no-fund --no-audit 2>&1 || echo '[ERROR] Rollback failed'
+                --prefix "$NPM_GLOBAL_DIR" --foreground-scripts --no-fund --no-audit 2>&1 || echo '[ERROR] Rollback failed'
             hash -r 2>/dev/null || true
         else
             echo '[ERROR] Update does not run and no previous version known — removing it so PATH falls back to the image binary'
@@ -456,7 +456,7 @@ while true; do
         elif [ "$AUTO_UPDATE" = "true" ]; then
             echo "[INFO] Auto-updating Claude Code ${IV:-unknown} -> $LV (active sessions keep the running version until restarted)..."
             timeout 300 npm install -g "@anthropic-ai/claude-code@$LV" \
-                --prefix "$NPM_GLOBAL_DIR" --no-fund --no-audit 2>&1 || true
+                --prefix "$NPM_GLOBAL_DIR" --foreground-scripts --no-fund --no-audit 2>&1 || true
             hash -r 2>/dev/null
             if timeout 30 claude --version </dev/null >/dev/null 2>&1; then
                 echo "[INFO] Claude Code now at: $(timeout 30 claude --version </dev/null 2>/dev/null)"
@@ -470,7 +470,7 @@ while true; do
                 echo "[ERROR] Claude Code $LV does not run here — rolling back to $IV"
                 echo "$LV" > "$PERSIST_DIR/.claude_bad_version"
                 timeout 300 npm install -g "@anthropic-ai/claude-code@$IV" \
-                    --prefix "$NPM_GLOBAL_DIR" --no-fund --no-audit 2>&1 || echo '[ERROR] Rollback failed'
+                    --prefix "$NPM_GLOBAL_DIR" --foreground-scripts --no-fund --no-audit 2>&1 || echo '[ERROR] Rollback failed'
                 hash -r 2>/dev/null
             else
                 echo '[ERROR] Update does not run and no previous version — removing it so PATH falls back to the image binary'
