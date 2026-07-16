@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.8.1] - 2026-07-16
+
+### Fixed
+- **Removed invalid `Glob(...)`/`Grep(...)` entries from the pre-authorized MCP tool list.** Recent Claude Code versions validate permission rules and warn that `Glob(path)`/`Grep(path)` aren't a valid form — a `Read(path)` rule already covers all file-reading tools (Read, Glob, Grep). The pre-authorization now lists only the `Read(...)` rules (which still auto-approve Glob/Grep on those paths), and a one-time filter strips any stale `Glob(...)`/`Grep(...)` entries left in `settings.json` by older versions. Purely a warning — Glob/Grep on `/homeassistant` and `/config` were always covered by the `Read(...)` rules — but it removes the startup noise
+
 ## [2.8.0] - 2026-07-15
 
 ### Fixed

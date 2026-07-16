@@ -313,17 +313,16 @@ if [ "$CLAUDE_OK" = "true" ] && [ "$ENABLE_MCP" = "true" ]; then
       "Read(/homeassistant/**)",
       "Read(/config/**)",
       "Read(/share/**)",
-      "Read(/media/**)",
-      "Glob(/homeassistant/**)",
-      "Glob(/config/**)",
-      "Grep(/homeassistant/**)",
-      "Grep(/config/**)"
+      "Read(/media/**)"
     ]'
+    # NOTE: a Read(path) rule covers ALL file-reading tools (Read, Glob, Grep) — separate
+    # Glob(path)/Grep(path) rules are not a valid permission form and current Claude Code
+    # warns about them. The strip filter below also removes any left over from older versions.
     # Write to a temp in the same dir and rename (atomic); guard the whole thing so a corrupt
     # or unparseable settings.json degrades to "tools still prompt" instead of aborting startup
     # under set -e (which would crash-loop the add-on — and this terminal is the recovery tool).
     if jq --argjson tools "$ALLOWED_TOOLS" \
-        '.permissions.allow = ($tools + (.permissions.allow // []) | unique)' \
+        '.permissions.allow = ($tools + ((.permissions.allow // []) | map(select(test("^(Glob|Grep)\\(") | not))) | unique)' \
         "$SETTINGS_FILE" > "$SETTINGS_FILE.tmp" && mv "$SETTINGS_FILE.tmp" "$SETTINGS_FILE"; then
         # The ha-mcp subprocess gets the HA connection from the exported HOMEASSISTANT_* env
         # vars, which it inherits. We deliberately do NOT persist the Supervisor token into
