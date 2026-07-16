@@ -13,8 +13,18 @@ PERSIST_DIR=/homeassistant/.claudecode
 NPM_GLOBAL_DIR="$PERSIST_DIR/npm-global"
 # Prepend writable npm prefix to PATH so any installed update takes priority over the image binary
 export PATH="$NPM_GLOBAL_DIR/bin:$PATH"
+# gh keeps its token in $GH_CONFIG_DIR (default /root/.config/gh) — the container layer, which
+# every add-on update/rebuild throws away, forcing a fresh `gh auth login` each time. /data
+# survives both and is only cleared on uninstall. Deliberately NOT $PERSIST_DIR: /homeassistant
+# is captured by HA backups, so the token would ride along in every archive.
+export GH_CONFIG_DIR=/data/gh
 
-mkdir -p "$PERSIST_DIR/config" "$NPM_GLOBAL_DIR" /root/.config
+mkdir -p "$PERSIST_DIR/config" "$NPM_GLOBAL_DIR" /root/.config "$GH_CONFIG_DIR"
+
+# gh's git credential helper is written to /root/.gitconfig — also on the container layer — so
+# persisting the token alone isn't enough: without this, `git push` prompts for a username on
+# every rebuild even though the login is still valid. Idempotent; no-op when not logged in.
+timeout 10 gh auth setup-git 2>/dev/null || true
 
 # Write the add-on's context/guidance file. It is imported from CLAUDE.md (below) rather
 # than written into it: ~/.claude/CLAUDE.md is Claude Code's user-memory file (/memory edits
