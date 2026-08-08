@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.14] - 2026-08-08
+
+### Fixed
+- **The add-on could not be built at all — broken since 0.1.11 (2026-02-23).** That release moved the base image from a hardcoded `FROM` into `build.yaml`'s `build_from`. The Supervisor validates `build_from` against `^([a-zA-Z\-\.:\d{}]+/)*?([\-\w{}]+)/([\-\w{}]+)(:[\.\-\w{}]+)?$`, which requires a **two-segment** repo path — `mcr.microsoft.com/playwright` is single-segment, so the value was rejected on every install. The Supervisor logs one warning, silently substitutes `ghcr.io/home-assistant/base:latest` (Alpine), and the build then ran on for several layers before dying on `apt-get: not found`, because Alpine has no apt. The base image is hardcoded in the `Dockerfile` again and `build.yaml` is removed. Verified against the regex as it appears in Supervisor `2025.12.0`, `2026.02.0`, `2026.07.0` and `main` — unchanged in all four
+
+### Changed
+- Base image updated to `mcr.microsoft.com/playwright:v1.62.1-noble` (from `v1.61.1-noble`). The tag is multi-arch, so a single `FROM` serves both amd64 and aarch64 — no per-arch table needed
+- Renovate now tracks the base image through its native Dockerfile manager instead of the custom `build.yaml` regex manager, which had been dutifully raising bumps against a file the Supervisor never read
+- README no longer names a base-image tag inline; it pointed at `v1.50.0-noble`, three releases behind what was actually configured
+
 ## [0.1.13] - 2026-05-28
 
 ### Changed

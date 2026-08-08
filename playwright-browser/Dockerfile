@@ -1,5 +1,10 @@
-ARG BUILD_FROM
-FROM ${BUILD_FROM}
+# Hardcoded rather than BUILD_FROM/build.yaml: the Supervisor validates build_from against
+# ^([a-zA-Z\-\.:\d{}]+/)*?([\-\w{}]+)/([\-\w{}]+)(:[\.\-\w{}]+)?$ — which needs a two-segment
+# repo path. "mcr.microsoft.com/playwright" is single-segment, so the value is rejected, one
+# warning is logged, and ghcr.io/home-assistant/base:latest (Alpine) is substituted silently.
+# The build then died far downstream on `apt-get: not found`. The tag is multi-arch
+# (linux/amd64 + linux/arm64), so one FROM covers both arches this add-on declares.
+FROM mcr.microsoft.com/playwright:v1.62.1-noble
 
 # Labels
 LABEL maintainer="chodeus"
