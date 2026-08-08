@@ -17,9 +17,12 @@ This file contains instructions for Claude Code when working on this repository.
 
 - `repository.yaml` - Add-on repository metadata
 - `renovate.json` - Dependency automation (regex manager reads `build.yaml` `build_from`)
-- `.github/workflows/builder.yaml` - Lints + publishes GHCR images. **Path-filtered to
-  `claudecode/**`**, so a PR touching only another add-on gets zero required contexts and
-  must be merged with `gh pr merge --admin`.
+- `.github/workflows/builder.yaml` - Lints + publishes GHCR images. Its three jobs
+  (`Lint add-on`, `Build amd64`, `Build aarch64`) are the required status checks on `main`,
+  so the `pull_request` trigger must stay **unfiltered** — a path-filtered workflow never
+  reports a required context and leaves such PRs blocked forever. The `push` trigger keeps
+  its path filter, because that one publishes to GHCR. Don't rename these jobs without
+  re-registering the branch-protection contexts.
 - `claudecode/` - Claude Code add-on
   - `config.yaml` - Add-on configuration (bump version here)
   - `Dockerfile` - Container build instructions
