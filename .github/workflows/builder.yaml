@@ -1,16 +1,22 @@
 name: Builder
 
 on:
+  # `push` stays path-filtered: this trigger PUBLISHES to GHCR, and a docs- or
+  # playwright-only commit must not re-push an already-released claudecode tag
+  # under a new digest.
   push:
     branches: [main]
     paths:
       - claudecode/**
       - .github/workflows/builder.yaml
+  # `pull_request` is deliberately NOT path-filtered. All three jobs here are
+  # required status checks on main, and a filtered workflow simply never reports
+  # them — so any PR touching no claudecode/ file (another add-on, renovate.json,
+  # a root doc, this workflow) sat permanently BLOCKED with 0 checks and could
+  # only land via `gh pr merge --admin`. Required checks and path filters cannot
+  # coexist. PR builds pass --test, so this only costs CI minutes, never a push.
   pull_request:
     branches: [main]
-    paths:
-      - claudecode/**
-      - .github/workflows/builder.yaml
   workflow_dispatch:
 
 jobs:
