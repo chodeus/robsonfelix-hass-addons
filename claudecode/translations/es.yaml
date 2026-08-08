@@ -48,16 +48,18 @@ configuration:
     name: Modelo Claude
     description: >-
       Elige un modelo. "default" usa el predeterminado de tu cuenta Claude (cambia con /model
-      en la sesión). "claude-fable-5" es el más capaz (nuevo nivel superior a Opus); las variantes
-      "[1m]" usan el mismo modelo con ventana de contexto de 1M tokens (disponibilidad y precio
-      dependen de tu plan). Elige "custom" para usar cualquier id indicado en Modelo
-      (personalizado) abajo — útil para modelos nuevos que no están en la lista, sin actualizar
-      el add-on.
+      en la sesión). "claude-fable-5" es el más capaz (nivel superior a Opus), "claude-opus-5"
+      es el Opus actual, "claude-sonnet-5" equilibra velocidad y capacidad, y
+      "claude-haiku-4-5" es el más rápido. Todos salvo Sonnet 4.6 y Haiku 4.5 tienen ventana de
+      contexto de 1M tokens (disponibilidad y precio dependen de tu plan). Elige "custom" para
+      usar cualquier id indicado en Modelo (personalizado) abajo — útil para modelos nuevos que
+      no están en la lista, sin actualizar el add-on.
   model_custom:
     name: Modelo (personalizado)
     description: >-
       Se usa solo cuando Modelo está en "custom". Indica el id exacto del modelo,
-      ej.: claude-fable-5. Si se deja vacío, se usa el predeterminado de la cuenta.
+      ej.: claude-opus-5, o uno con sufijo como claude-sonnet-4-6[1m] para la ventana de
+      contexto de 1M tokens. Si se deja vacío, se usa el predeterminado de la cuenta.
   enable_remote_control:
     name: Habilitar Control Remoto
     description: >-

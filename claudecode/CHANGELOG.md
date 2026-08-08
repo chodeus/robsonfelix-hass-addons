@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.9.0] - 2026-08-08
+
+### Added
+- **`claude-opus-5` and `claude-sonnet-5` in the model dropdown.** Opus 5 is the current Opus generation and Sonnet 5 brings near-Opus coding quality at the Sonnet tier; both carry a 1M-token context window natively. Claude Code's own model registry now resolves the newest of each family as Fable 5 / Opus 5 / Sonnet 5 / Haiku 4.5, and the dropdown matches that
+
+### Changed
+- **⚠️ The `[1m]` dropdown entries are gone — if you had one selected you must re-pick a model.** `claude-fable-5[1m]` and `claude-opus-4-8[1m]` were removed. The Supervisor rejects an option value that is no longer in the list, so the add-on will refuse to start until you choose again in the config (same one-time step as the 2.6.0 Haiku dated-id change). Nothing else about your configuration is touched
+- **The `[1m]` suffix no longer buys anything on the models that offered it.** Fable 5, Opus 5, Opus 4.8 and Opus 4.7 are all *natively* 1M-context in current Claude Code — the suffix is a no-op on them, and Fable 5 was never published as a `[1m]` variant in the first place (it inherited the entry from a copy-paste when Fable 5 was added in 2.6.0). Sonnet 4.6 is the only model still in the list where the suffix does real work; enter `claude-sonnet-4-6[1m]` in **Model (custom)** if you want its 1M window
+- Dropdown order now runs most- to least-capable: Fable 5, Opus 5, Opus 4.8, Opus 4.7, Sonnet 5, Sonnet 4.6, Haiku 4.5
+
+### Fixed
+- **Documentation claimed Fable 5 and Opus 4.8 had a "standard 200K context".** Both have been natively 1M for some time, so the README's model table, its 1M-context explainer, and the config-UI descriptions in all four languages (en/es/fr/pt-BR) were describing a trade-off that no longer exists — and steering people toward a `[1m]` entry that did nothing. All corrected, with each option's real context window now stated in the table
+
 ## [2.8.2] - 2026-07-16
 
 ### Fixed
