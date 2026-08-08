@@ -55,3 +55,9 @@ When making changes that require a new release:
   value the Supervisor logs one warning and silently substitutes `ghcr.io/home-assistant/base:latest`
   — the build then fails much later on a distro mismatch (e.g. `apt-get: not found` on Alpine).
   Hardcode `FROM` in the Dockerfile for such images instead of using `build.yaml`.
+- **`home-assistant/builder` cannot be SHA-pinned.** It builds its image reference from its own
+  ref (`github.action_path`'s last segment) and then pulls
+  `ghcr.io/home-assistant/<arch>-builder:<that ref>`. Pinned to a digest it pulls
+  `...-builder:<sha>`, which isn't a published tag, and the build dies on `manifest unknown`.
+  Keep it on a version tag; `renovate.json` has a `pinDigests: false` rule so Renovate
+  stops proposing the pin. Every other action in the workflow is SHA-pinned and should stay so.

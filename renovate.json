@@ -12,5 +12,13 @@
       ],
       "datasourceTemplate": "docker"
     }
+  ],
+  "packageRules": [
+    {
+      "description": "home-assistant/builder must stay on a version tag. It builds its image reference from its own ref -- `input=$(echo ${{ github.action_path }} | rev | cut -d/ -f1 | rev)` then `docker pull ghcr.io/home-assistant/<arch>-builder:${input}` -- so a digest pin resolves to ...-builder:<sha>, which is not a published tag, and every build fails with 'manifest unknown'. The chodeus-ops preset sets pinDigests:true for all github-actions; this rule follows it and wins.",
+      "matchManagers": ["github-actions"],
+      "matchDepNames": ["home-assistant/builder"],
+      "pinDigests": false
+    }
   ]
 }

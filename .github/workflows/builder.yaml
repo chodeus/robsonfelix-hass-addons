@@ -28,7 +28,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Run Home Assistant add-on linter
-        uses: frenck/action-addon-linter@v2
+        uses: frenck/action-addon-linter@f995494fd84fae6310d23617e66d0e37de4f14eb # v2
         with:
           path: ./claudecode
 
@@ -58,6 +58,11 @@ jobs:
       # PRs run with --test (build only, no push). The add-on keeps building locally on
       # users' machines until config.yaml's `image:` key is uncommented — only do that
       # after this workflow has published PUBLIC images for the release version.
+      # DO NOT pin this action to a SHA. It derives the builder image tag from its own ref:
+      #   input=$(echo "${{ github.action_path }}" | rev | cut -d"/" -f1 | rev)
+      #   docker pull ghcr.io/home-assistant/<arch>-builder:${input}
+      # A digest pin makes that `docker pull ...-builder:<sha>` -> "manifest unknown".
+      # renovate.json carries a matching pinDigests:false rule so Renovate stops proposing it.
       - name: Build ${{ matrix.arch }} add-on
         uses: home-assistant/builder@2025.03.0
         with:
